@@ -1,0 +1,180 @@
+initialize() {
+    initializeSLiMModelType("nonWF");
+    initializeTreeSeq();
+    
+    defineConstant("TOPOLOGY", "line");    //change for different settings
+    
+    if (TOPOLOGY == "line") {
+        defineConstant("ADJMATFILE", "data/toy/adjmat_line.csv");
+        defineConstant("N", 20);              
+        defineConstant("MAX_NEIGHBORS", 2);   
+        defineConstant("INIT_DEME", 2);       
+        defineConstant("m", 0.01);     // Base migration rate
+    } 
+    else if (TOPOLOGY == "square") {
+        defineConstant("ADJMATFILE", "data/toy/adjmat_square.csv");
+        defineConstant("N", 100); 
+        defineConstant("MAX_NEIGHBORS", 4);   
+        defineConstant("INIT_DEME", 23); 
+        defineConstant("m", 0.005);     // Base migration rate
+    }
+    else if (TOPOLOGY == "hexagon") {
+        defineConstant("ADJMATFILE", "data/toy/adjmat_hexagon.csv");
+        defineConstant("N", 271);             
+        defineConstant("MAX_NEIGHBORS", 6);   
+        defineConstant("INIT_DEME", 34); 
+        defineConstant("m", 0.007);     // Base migration rate
+    }
+    else if (TOPOLOGY == "cube") {
+        defineConstant("ADJMATFILE", "data/toy/adjmat_cube.csv");
+        defineConstant("N", 343);              
+        defineConstant("MAX_NEIGHBORS", 6);  
+        defineConstant("INIT_DEME", 58);    
+        defineConstant("m", 0.005);
+    }
+    else {
+        stop("Unknown TOPOLOGY setting.");
+    }
+
+    defineConstant("K", 100);       
+    defineConstant("e", 0.0);       
+    
+    initializeMutationType("m1", 0.5, "g", 0.0, 2);
+    initializeGenomicElementType("g1", m1, 1.0);
+    initializeGenomicElement(g1, 0, 1e8 - 1);
+    initializeMutationRate(0.0);
+    initializeRecombinationRate(1e-8);
+    initializeSex("A");
+}
+
+function (float)survival(integer x) {
+    ans = float(length(x));
+    c0 = which(x <= 1);
+    c1 = which(x < 55 & x > 1);
+    c2 = which(x >= 55);
+    ans[c0] = 0.6;
+    ans[c1] = 0.95;
+    ans[c2] = pmax(-0.038*x[c2] + 3.04, 0.0);  
+    return (ans);
+}
+
+reproduction(NULL, "F") {
+      if (individual.age >= 15 & individual.age <= 40) {
+          mate = subpop.sampleIndividuals(1, sex="M", minAge=15, maxAge=55);
+          if (mate.size() == 1)
+              subpop.addCrossed(individual, mate);
+      }
+}
+
+1 early() {
+    adjacency_matrix = asInteger(readCSV(ADJMATFILE, F).asMatrix());
+    if (TOPOLOGY == "hexagon") {
+        weights = asFloat(readCSV("data/toy/hexagon_weights.csv", F).asMatrix());
+        defineConstant("GRID_WEIGHTS", c(weights)); // 转成1D vector
+    }
+    else if (TOPOLOGY == "cube") {
+        weights = asFloat(readCSV("data/toy/cube_weights.csv", F).asMatrix());
+        defineConstant("GRID_WEIGHTS", c(weights));
+    }
+    neighbors = matrix(rep(-1, N*MAX_NEIGHBORS), N, MAX_NEIGHBORS); 
+    for (i in 0:(N-1)) {
+        k = 0;
+        for (j in 0:(N-1)) {
+            if (j == i)
+                next;
+            if (c(adjacency_matrix[i,j]) == 1) {
+                neighbors[i, k] = j;
+                k = k + 1;
+            }
+        }
+        if (k == 0) stop("Disconnected subpopulations are not allowed");
+    }
+    defineConstant("SUBPOPN", neighbors);
+    for (i in 0:(N-1)) {
+        subpop = sim.addSubpop(i, (i == INIT_DEME) ? 10 else 0);
+        if (i == INIT_DEME ){
+            subpop.individuals.age = c(0,5,10,17,20,30,14,35,50,60);
+        }
+    }
+}
+
+early() {
+    // --- 核心改动：基于格子的局部迁移逻辑 (Friction) ---
+    for (subpop in sim.subpopulations)
+    {
+        indivs = subpop.individuals;
+        if (indivs.size() == 0) next;
+        
+        // 如果是 10-20 号格子，迁移率降为 1/5
+        if (TOPOLOGY == "line"){
+            current_m = (subpop.id >= 9 ) ? (m * 0.2) else m;
+        }
+        else if (TOPOLOGY == "square"){
+            row = floor(subpop.id / 10) + 1;
+            col = (subpop.id % 10) + 1;
+            if (row <= 5) {
+                weight = (col <= 5) ? 1.0 else 2.0; // 左上=1, 右上=2
+            } else {
+                weight = (col <= 5) ? 3.0 else 4.0; // 左下=3, 右下=4
+            }
+            current_m = m / weight;
+        }
+        else if (TOPOLOGY == "hexagon"| TOPOLOGY == "cube"){
+            // 统一使用从 R 导出的 GRID_WEIGHTS
+            weight = GRID_WEIGHTS[subpop.id]; 
+            // 距离为1对应基础m，距离为2对应m/2，以此类推
+            current_m = m / weight; 
+        }
+        
+        
+        nMigrants = rbinom(1, indivs.size(), current_m);
+        if (nMigrants == 0) next;
+        
+        migrants = sample(indivs, nMigrants);
+        for (migrant in migrants)
+        {
+            if (migrant.age < 15) next;
+            tries = 0;
+            dest_id = -1;
+            do {
+                j = sample(0:(MAX_NEIGHBORS - 1), 1);
+                dest_id = c(SUBPOPN[subpop.id, j]);
+                tries = tries + 1;
+                if (dest_id != -1) break; 
+            } while (tries < 100);
+            
+            if (dest_id != -1) {
+                dest = sim.subpopulations[dest_id];
+                dest.takeMigrants(migrant);
+            }
+        }
+    }
+
+    // density-dependence and random extinctions
+    for (subpop in sim.subpopulations)
+    {
+        if (runif(1) < e) {
+            sim.killIndividuals(subpop.individuals);
+        } else {
+            indivs = subpop.individuals;
+            if (length(indivs)) {            
+                s = survival(indivs.age);
+                indivs.fitnessScaling = s;
+                subpop.fitnessScaling = K / (subpop.individualCount * mean(s));
+            }
+        }
+    }
+}
+
+late() {
+    sim.treeSeqRememberIndividuals(sim.subpopulations.individuals, permanent=F);
+    if (sum(sim.subpopulations.individualCount) == 0)
+        stop("Global extinction in cycle " + sim.cycle + ".");
+}
+
+5000 late() {     
+    if (!exists("INDEX")) defineConstant("INDEX", getSeed());
+    path = "data/toy/trees/tree-" + TOPOLOGY + "-friction-" + INDEX + ".trees";
+    sim.treeSeqOutput(path);
+    sim.simulationFinished();
+}

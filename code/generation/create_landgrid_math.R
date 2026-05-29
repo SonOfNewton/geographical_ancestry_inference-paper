@@ -26,6 +26,17 @@ for(i in 1:nrow(edges_in_graph)) {
 cost.mat <- distances(g_friction, weights = E(g_friction)$weight)
 write.table(cost.mat, file = "data/math/costmat_line_friction.csv", sep = ",")
 
+# weights (friction and naive)
+line_weights <- sapply(1:n, function(i) {
+  if (i <= 10) {
+    return(1)
+  } else {
+    return(5)
+  }
+})
+write.table(line_weights, file = "data/math/line_weights.csv", row.names = FALSE, col.names = FALSE)
+line_weights <- sapply(1:n, function(i) {return(1)})
+write.table(line_weights, file = "data/math/line_weights_naive.csv", row.names = FALSE, col.names = FALSE)
 
 # friction cost matrix scenario 2: cost=1, 2, 5, 10 for deme regions 1-5, 6-10, 11-15, 16-20, respectively
 adj_mat <- as.matrix(read.csv("data/math/adjmat_line.csv", header = FALSE))
@@ -53,6 +64,19 @@ for (i in 1:nrow(edges_in_graph)) {
 }
 cost.mat <- igraph::distances(g_friction, weights = E(g_friction)$weight)
 write.table(cost.mat, file = "data/math/costmat_line_friction_case2.csv", sep = ",")
+
+line_weights <- sapply(1:n, function(i) {
+  if (i <= 5) {
+    return(1)
+  } else if (i <= 10) {
+    return(2)
+  } else if (i <= 15) {
+    return(5)
+  } else {
+    return(10)
+  }
+})
+write.table(line_weights, file = "data/math/line_weights_case2.csv", row.names = FALSE, col.names = FALSE)
 
 
 ########## grid generation for square ########## 
@@ -85,7 +109,7 @@ edge_weights <- sapply(1:nrow(edges), function(i) {
 })
 cost.mat <- distances(g, weights = edge_weights)
 write.table(cost.mat, file = "data/math/costmat_square_friction.csv", sep = ",")
-
+write.table(weights_vec, file = "data/math/square_weights.csv", row.names = FALSE, col.names = FALSE)
 
 ########## grid generation for cube ########## 
 size <- 7

@@ -2,31 +2,36 @@ initialize() {
     initializeSLiMModelType("nonWF");
     initializeTreeSeq();
     
-    defineConstant("TOPOLOGY", "line");    //change for different settings
-    
+    if (!exists("TOPOLOGY"))
+        defineConstant("TOPOLOGY", "line");
+    if (!exists("MODEL"))
+        defineConstant("MODEL", "naive");
+
     if (TOPOLOGY == "line") {
-        defineConstant("ADJMATFILE", "data/toy/adjmat_line.csv");
+        defineConstant("ADJMATFILE", "data/math/adjmat_line.csv");
+        if (MODEL == "naive"){
+            defineConstant("WEIGHTFILE", "data/math/line_weights_naive.csv");
+            defineConstant("INIT_DEME", 0); 
+            defineConstant("m", 0.002);    
+        } else if (MODEL == "friction"){
+            defineConstant("WEIGHTFILE", "data/math/line_weights.csv");
+            defineConstant("INIT_DEME", 2);   // Base migration rate
+            defineConstant("m", 0.01);
+        }
         defineConstant("N", 20);              
-        defineConstant("MAX_NEIGHBORS", 2);   
-        defineConstant("INIT_DEME", 2);       
-        defineConstant("m", 0.01);     // Base migration rate
+        defineConstant("MAX_NEIGHBORS", 2);       
     } 
     else if (TOPOLOGY == "square") {
-        defineConstant("ADJMATFILE", "data/toy/adjmat_square.csv");
+        defineConstant("ADJMATFILE", "data/math/adjmat_square.csv");
+        defineConstant("WEIGHTFILE", "data/math/square_weights.csv");
         defineConstant("N", 100); 
         defineConstant("MAX_NEIGHBORS", 4);   
         defineConstant("INIT_DEME", 23); 
         defineConstant("m", 0.005);     // Base migration rate
     }
-    else if (TOPOLOGY == "hexagon") {
-        defineConstant("ADJMATFILE", "data/toy/adjmat_hexagon.csv");
-        defineConstant("N", 271);             
-        defineConstant("MAX_NEIGHBORS", 6);   
-        defineConstant("INIT_DEME", 34); 
-        defineConstant("m", 0.007);     // Base migration rate
-    }
     else if (TOPOLOGY == "cube") {
-        defineConstant("ADJMATFILE", "data/toy/adjmat_cube.csv");
+        defineConstant("ADJMATFILE", "data/math/adjmat_cube.csv");
+        defineConstant("WEIGHTFILE", "data/math/cube_weights.csv");
         defineConstant("N", 343);              
         defineConstant("MAX_NEIGHBORS", 6);  
         defineConstant("INIT_DEME", 58);    
@@ -68,14 +73,8 @@ reproduction(NULL, "F") {
 
 1 early() {
     adjacency_matrix = asInteger(readCSV(ADJMATFILE, F).asMatrix());
-    if (TOPOLOGY == "hexagon") {
-        weights = asFloat(readCSV("data/toy/hexagon_weights.csv", F).asMatrix());
-        defineConstant("GRID_WEIGHTS", c(weights)); // 转成1D vector
-    }
-    else if (TOPOLOGY == "cube") {
-        weights = asFloat(readCSV("data/toy/cube_weights.csv", F).asMatrix());
-        defineConstant("GRID_WEIGHTS", c(weights));
-    }
+    weights = asFloat(readCSV(WEIGHTFILE, F).asMatrix());
+    defineConstant("GRID_WEIGHTS", c(weights));
     neighbors = matrix(rep(-1, N*MAX_NEIGHBORS), N, MAX_NEIGHBORS); 
     for (i in 0:(N-1)) {
         k = 0;
@@ -99,32 +98,13 @@ reproduction(NULL, "F") {
 }
 
 early() {
-    // --- 核心改动：基于格子的局部迁移逻辑 (Friction) ---
     for (subpop in sim.subpopulations)
     {
         indivs = subpop.individuals;
         if (indivs.size() == 0) next;
         
-        // 如果是 10-20 号格子，迁移率降为 1/5
-        if (TOPOLOGY == "line"){
-            current_m = (subpop.id >= 9 ) ? (m * 0.2) else m;
-        }
-        else if (TOPOLOGY == "square"){
-            row = floor(subpop.id / 10) + 1;
-            col = (subpop.id % 10) + 1;
-            if (row <= 5) {
-                weight = (col <= 5) ? 1.0 else 2.0; // 左上=1, 右上=2
-            } else {
-                weight = (col <= 5) ? 3.0 else 4.0; // 左下=3, 右下=4
-            }
-            current_m = m / weight;
-        }
-        else if (TOPOLOGY == "hexagon"| TOPOLOGY == "cube"){
-            // 统一使用从 R 导出的 GRID_WEIGHTS
-            weight = GRID_WEIGHTS[subpop.id]; 
-            // 距离为1对应基础m，距离为2对应m/2，以此类推
-            current_m = m / weight; 
-        }
+        weight = GRID_WEIGHTS[subpop.id];
+        current_m = m / weight;
         
         
         nMigrants = rbinom(1, indivs.size(), current_m);
@@ -174,7 +154,7 @@ late() {
 
 5000 late() {     
     if (!exists("INDEX")) defineConstant("INDEX", getSeed());
-    path = "data/toy/trees/tree-" + TOPOLOGY + "-friction-" + INDEX + ".trees";
+    path = "data/trees/math-tree-" + TOPOLOGY + "-" + MODEL + "-" + INDEX + ".trees";
     sim.treeSeqOutput(path);
     sim.simulationFinished();
 }

@@ -3,168 +3,169 @@ library(ggplot2)
 library(ggpubr) 
 library(gaia)
 library(igraph)
+library(parallel)
 
-mode ="line" # "world" "square" "line" "hexagon" "cube"
-real_case = "friction"  # "friction" "naive"
-model = "naive"  # "friction" "naive"
+all_mode = c("line", "square", "cube")
+real_case = "friction"
+all_model = c("friction", "naive")
 
-final_output_list <- list()
 
-for (i in 1:50) {
-  if (mode == "square"){
-    if (real_case=="naive"){
-      ts_file <- paste0("data/toy/trees/tree-square-naive-", i, ".trees")
-    } else if (real_case == "friction"){
-      ts_file <- paste0("data/toy/trees/tree-square-friction-", i, ".trees")
-    }
-    MAXDEME = 100
-    cost_mat_error = data.matrix(read.csv("data/math/costmat_square_naive.csv"))
-    if (model == "naive"){
-      cost.mat <- data.matrix(read.csv("data/math/costmat_square_naive.csv"))
-    } else if (model == "friction"){
-      cost.mat = data.matrix(read.csv("data/math/costmat_square_friction.csv"))
-    }
+for (mode in all_mode){
+  for (model in all_model){
+    cat(sprintf("\n=== Running: mode = %s | model = %s ===\n", mode, model))
     
-  }else if (mode == "line"){
-    if (real_case=="naive"){
-      ts_file <- paste0("data/toy/trees/tree-line-naive-", i, ".trees")
-    } else if (real_case == "friction"){
-      ts_file <- paste0("data/toy/trees/tree-line-friction-", i, ".trees")
-      #ts_file <- paste0("data/toy/trees/tree-line-friction-complex-", i, ".trees")
-    }
-    MAXDEME = 20
-    cost_mat_error = data.matrix(read.csv("data/math/costmat_line_naive.csv"))
-    if (model == "naive"){
-      cost.mat = data.matrix(read.csv("data/math/costmat_line_naive.csv"))
-    } else if (model == "friction"){
-      cost.mat = data.matrix(read.csv("data/math/costmat_line_friction.csv"))
-    }
+    if (!exists("usecores")) usecores <- 1
+    cl <- makeCluster(usecores)
+    clusterExport(cl, varlist = c("mode", "model", "real_case", "process_one_file"), envir = environment())
+    clusterEvalQ(cl, {
+      library(gaia)
+      library(tidyverse)
+    })
     
-  }else if (mode == "cube"){
-    if (real_case=="naive"){
-      ts_file <- paste0("data/toy/trees/tree-cube-naive-", i, ".trees")
-    } else if (real_case == "friction"){
-      ts_file <- paste0("data/toy/trees/tree-cube-friction-", i, ".trees")
-    }
-    MAXDEME = 343
-    cost_mat_error = data.matrix(read.csv("data/toy/costmat_cube_naive.csv"))
-    if (model == "naive"){
-      cost.mat = data.matrix(read.csv("data/toy/costmat_cube_naive.csv"))
-    }else if (model == "friction"){
-      cost.mat = data.matrix(read.csv("data/toy/costmat_cube_friction.csv"))
-    }
+    final_output_list <- parLapply(cl, 1:50, function(i) {
+      process_one_file(i, mode, model, real_case)
+    })
+    
+    stopCluster(cl)
+    
+    summary_table <- do.call(rbind, final_output_list)
+    output_path <- sprintf("output/tables/all_results_%s_%s.csv", mode, model)
+    write.csv(summary_table, output_path, row.names = FALSE)
+    
+    cat(sprintf("Finished: %s | Saved to: %s\n", paste(mode, model, sep="_"), output_path))
   }
-  
-  
-  ts <- treeseq_load(ts_file)
-  nodes <- treeseq_nodes(ts)
-  edges <- treeseq_edges(ts)
-  #unique(edges$left)   # check recombinations
-  
-  # 提取所有存活的现代样本节点
-  sample_nodes <- nodes[nodes$is_sample == 1, ]
-  
-  
-  populated_demes <- unique(sample_nodes$population_id)
-  
-  # 2. 【核心修改】：随机选取 10 个格子（包含安全机制）
-  set.seed(42) # 设定种子，保证每次选中的 10 个格子是固定的
-  num_demes_to_sample <- min(30,MAXDEME)
-  
-  # 随机无放回抽取 
-  pops_to_sample <- sample(populated_demes, num_demes_to_sample, replace = FALSE)
-  
-  # 过滤数据，仅保留这 10 个被选中格子里的个体
-  sample_nodes_to_sample <- sample_nodes[sample_nodes$population_id %in% pops_to_sample, ]
-  
-  # 3. 安全抽样函数（防止单个格子只有1人时的 sample 陷阱）
-  safe_sample <- function(x) {
-    if (length(x) == 1) return(x)
-    return(sample(x, 1, replace = FALSE))  # sample how many from each deme
-  }
-  
-  set.seed(40) # 保证每次每个格子抽到的人一样
-  # 从这 10 个格子中，各随机抽取 1 个个体
-  indivs <- unlist(unname(tapply(
-    sample_nodes_to_sample$individual_id, 
-    sample_nodes_to_sample$population_id, 
-    safe_sample
-  )))
-  
-  # 提取保留个体的 node_id 并简化树序列
-  to_keep <- sample_nodes_to_sample$node_id[sample_nodes_to_sample$individual_id %in% indivs]
-  ts2 <- treeseq_simplify(ts, to_keep, filter.populations = FALSE)
-  
-  nodes2 <- treeseq_nodes(ts2)
-  sample_nodes2 <- nodes2[nodes2$is_sample == 1, ]
-  sample_locations <- cbind(node_id = sample_nodes2[, 1], state_id = sample_nodes2[, 4] + 1L)
-  
-  nodes_df <- treeseq_nodes(ts2)
-  edges_tree1 <- treeseq_edges(ts2)
-  
-  ### GAIA
-  mpr <- treeseq_discrete_mpr(ts2, sample_locations, cost.mat)  #, use_brlen=TRUE)
-  estimated_node_states = treeseq_discrete_mpr_minimize(mpr)
-  real_node_states = nodes_df$population_id + 1L
-  comparison_df <- data.frame(
-    node_id = nodes_df$node_id,
-    time = nodes_df$time,
-    real_state = real_node_states,
-    est_state = estimated_node_states
-  )
-  
-  # 2. 按时间降序排列 (time 值越大，代表历史上越古老)
-  comparison_df <- comparison_df[order(comparison_df$time, decreasing = TRUE), ]
-  
-  #分段平均误差距离
-  comparison_df$distance <- cost_mat_error[cbind(comparison_df$real_state, comparison_df$est_state)]
-  
-  # 强制划分为时间上等长的 4 段（注意：如果某些文件时间范围极小，建议检查 breaks）
-  comparison_df$time_bin <- cut(comparison_df$time, breaks = 4, include.lowest = TRUE)
-  
-  # 分组计算
-  node_counts <- aggregate(distance ~ time_bin, data = comparison_df, FUN = length)
-  mean_errors <- aggregate(distance ~ time_bin, data = comparison_df, FUN = function(x) mean(x, na.rm = TRUE))
-  
-  # 排序：从老到新 (4个分段)
-  node_counts <- node_counts[order(node_counts$time_bin, decreasing = TRUE), ]
-  mean_errors <- mean_errors[order(mean_errors$time_bin, decreasing = TRUE), ]
-  
-  # --- 3. 将结果“拉平”成一行 ---
-  # 我们需要 8 个指标：T1_count, T2_count, T3_count, T4_count, T1_err, T2_err, T3_err, T4_err
-  row_data <- data.frame(
-    file_id = i,
-    # 样本量列
-    count_bin1_old = node_counts$distance[1],
-    count_bin2     = node_counts$distance[2],
-    count_bin3     = node_counts$distance[3],
-    count_bin4_new = node_counts$distance[4],
-    # 误差列
-    error_bin1_old = mean_errors$distance[1],
-    error_bin2     = mean_errors$distance[2],
-    error_bin3     = mean_errors$distance[3],
-    error_bin4_new = mean_errors$distance[4]
-  )
-  
-  final_output_list[[i]] <- row_data
-  message(paste("Processed file:", i))
 }
 
-# ==========================================
-# 合并并保存最终结果
-# ==========================================
-summary_table <- do.call(rbind, final_output_list)
 
-# 写入文件
-write.csv(summary_table, sprintf("data/toy/all_results_%s_%s.csv", mode, model), row.names = FALSE)
-
-
+# # iterate through all modes and both models
+# for (mode in mode){
+#   for (model in model){
+# 
+# final_output_list <- list()
+# for (i in 1:50) {
+#   ts_file <- sprintf("data/trees/math-tree-%s-%s-%s.trees", mode, real_case, i)
+#   cost_mat_error <- data.matrix(read.csv(sprintf("data/math/costmat_%s_naive.csv", mode)))
+#   cost.mat <- data.matrix(read.csv(sprintf("data/math/costmat_%s_%s.csv", mode, model)))
+#   if (mode == "square"){
+#     MAXDEME = 100
+#   }else if (mode == "line"){
+#     MAXDEME = 20
+#   }else if (mode == "cube"){
+#     MAXDEME = 343
+#   }
+#   
+#   ts <- treeseq_load(ts_file)
+#   nodes <- treeseq_nodes(ts)
+#   edges <- treeseq_edges(ts)
+#   #unique(edges$left)   # check recombinations
+#   
+#   # 提取所有存活的现代样本节点
+#   sample_nodes <- nodes[nodes$is_sample == 1, ]
+#   
+#   
+#   populated_demes <- unique(sample_nodes$population_id)
+#   
+#   # 2. 【核心修改】：随机选取 10 个格子（包含安全机制）
+#   set.seed(42) # 设定种子，保证每次选中的 10 个格子是固定的
+#   num_demes_to_sample <- min(30,MAXDEME)
+#   
+#   # 随机无放回抽取 
+#   pops_to_sample <- sample(populated_demes, num_demes_to_sample, replace = FALSE)
+#   
+#   # 过滤数据，仅保留这 10 个被选中格子里的个体
+#   sample_nodes_to_sample <- sample_nodes[sample_nodes$population_id %in% pops_to_sample, ]
+#   
+#   # 3. 安全抽样函数（防止单个格子只有1人时的 sample 陷阱）
+#   safe_sample <- function(x) {
+#     if (length(x) == 1) return(x)
+#     return(sample(x, 1, replace = FALSE))  # sample how many from each deme
+#   }
+#   
+#   set.seed(40) # 保证每次每个格子抽到的人一样
+#   # 从这 10 个格子中，各随机抽取 1 个个体
+#   indivs <- unlist(unname(tapply(
+#     sample_nodes_to_sample$individual_id, 
+#     sample_nodes_to_sample$population_id, 
+#     safe_sample
+#   )))
+#   
+#   # 提取保留个体的 node_id 并简化树序列
+#   to_keep <- sample_nodes_to_sample$node_id[sample_nodes_to_sample$individual_id %in% indivs]
+#   ts2 <- treeseq_simplify(ts, to_keep, filter.populations = FALSE)
+#   
+#   nodes2 <- treeseq_nodes(ts2)
+#   sample_nodes2 <- nodes2[nodes2$is_sample == 1, ]
+#   sample_locations <- cbind(node_id = sample_nodes2[, 1], state_id = sample_nodes2[, 4] + 1L)
+#   
+#   nodes_df <- treeseq_nodes(ts2)
+#   edges_tree1 <- treeseq_edges(ts2)
+#   
+#   ### GAIA
+#   mpr <- treeseq_discrete_mpr(ts2, sample_locations, cost.mat)  #, use_brlen=TRUE)
+#   estimated_node_states = treeseq_discrete_mpr_minimize(mpr)
+#   real_node_states = nodes_df$population_id + 1L
+#   comparison_df <- data.frame(
+#     node_id = nodes_df$node_id,
+#     time = nodes_df$time,
+#     real_state = real_node_states,
+#     est_state = estimated_node_states
+#   )
+#   
+#   # 2. 按时间降序排列 (time 值越大，代表历史上越古老)
+#   comparison_df <- comparison_df[order(comparison_df$time, decreasing = TRUE), ]
+#   
+#   #分段平均误差距离
+#   comparison_df$distance <- cost_mat_error[cbind(comparison_df$real_state, comparison_df$est_state)]
+#   
+#   # 强制划分为时间上等长的 4 段（注意：如果某些文件时间范围极小，建议检查 breaks）
+#   comparison_df$time_bin <- cut(comparison_df$time, breaks = 4, include.lowest = TRUE)
+#   
+#   # 分组计算
+#   node_counts <- aggregate(distance ~ time_bin, data = comparison_df, FUN = length)
+#   mean_errors <- aggregate(distance ~ time_bin, data = comparison_df, FUN = function(x) mean(x, na.rm = TRUE))
+#   
+#   # 排序：从老到新 (4个分段)
+#   node_counts <- node_counts[order(node_counts$time_bin, decreasing = TRUE), ]
+#   mean_errors <- mean_errors[order(mean_errors$time_bin, decreasing = TRUE), ]
+#   
+#   # --- 3. 将结果“拉平”成一行 ---
+#   # 我们需要 8 个指标：T1_count, T2_count, T3_count, T4_count, T1_err, T2_err, T3_err, T4_err
+#   row_data <- data.frame(
+#     file_id = i,
+#     # 样本量列
+#     count_bin1_old = node_counts$distance[1],
+#     count_bin2     = node_counts$distance[2],
+#     count_bin3     = node_counts$distance[3],
+#     count_bin4_new = node_counts$distance[4],
+#     # 误差列
+#     error_bin1_old = mean_errors$distance[1],
+#     error_bin2     = mean_errors$distance[2],
+#     error_bin3     = mean_errors$distance[3],
+#     error_bin4_new = mean_errors$distance[4]
+#   )
+#   
+#   final_output_list[[i]] <- row_data
+#   message(paste("Processed file:", i))
+# }
+# 
+# # ==========================================
+# # 合并并保存最终结果
+# # ==========================================
+# summary_table <- do.call(rbind, final_output_list)
+# 
+# # 写入文件
+# write.csv(summary_table, sprintf("output/tables/all_results_%s_%s.csv", mode, model), row.names = FALSE)
+# 
+#   }
+# }
 
 
 
 ######## test the difference ########
-df_naive <- read.csv(sprintf("data/toy/all_results_%s_naive.csv", mode)) %>% mutate(group = "Naive")
-df_friction <- read.csv(sprintf("data/toy/all_results_%s_friction.csv", mode)) %>% mutate(group = "Friction")
+for (mode in all_mode){
+  
+df_naive <- read.csv(sprintf("output/tables/all_results_%s_naive.csv", mode)) %>% mutate(group = "Naive")
+df_friction <- read.csv(sprintf("output/tables/all_results_%s_friction.csv", mode)) %>% mutate(group = "Friction")
 df_naive=df_naive[1:50,]
 df_friction=df_friction[1:50,]
 df_all <- rbind(df_naive, df_friction)
@@ -293,7 +294,7 @@ ggsave(sprintf("output/figures/error_comparison_%s.png", mode),
 
 print(p)
 
-
+}
 
 
 

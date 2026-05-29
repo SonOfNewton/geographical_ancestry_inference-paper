@@ -1,7 +1,7 @@
+# parameters
 levels <- 5
 nodes_per_level <- 2^(0:(levels-1))
 
-# ===== 生成节点ID =====
 node_id <- list()
 counter <- 1
 for (l in 1:levels) {
@@ -9,14 +9,14 @@ for (l in 1:levels) {
   counter <- counter + nodes_per_level[l]
 }
 
-# ===== 递归计算x坐标（关键：三角形布局）=====
+# recursive calculation of x coordinate
 coords <- list()
 
-# 叶子均匀分布
+# distribution of leaves
 leaf_x <- seq(0, 1, length.out = nodes_per_level[levels])
 coords[[levels]] <- cbind(leaf_x, rep(0, nodes_per_level[levels]))
 
-# 自底向上：父节点 = 子节点中点
+# bottom up
 for (l in (levels-1):1) {
   n <- nodes_per_level[l]
   xy <- matrix(NA, n, 2)
@@ -29,7 +29,6 @@ for (l in (levels-1):1) {
   coords[[l]] <- xy
 }
 
-# ===== 标签 =====
 labels <- list(
   c(1),
   c(1,2),
@@ -38,9 +37,7 @@ labels <- list(
   c(1,1,1,1,1,1,1,1,2,2,2,2,3,3,4,5)
 )
 
-# ===== 高亮路径 =====
 highlight_leaves <- c(1,9,13,15,16)
-
 get_path <- function(idx) {
   path <- c()
   for (l in levels:1) {
@@ -51,7 +48,6 @@ get_path <- function(idx) {
 }
 
 edge_key <- function(l,p,c) paste(l,p,c)
-
 highlight_edges <- c()
 for (leaf in highlight_leaves) {
   p <- get_path(leaf)
@@ -60,11 +56,11 @@ for (leaf in highlight_leaves) {
   }
 }
 
-# ===== 绘图 =====
+# plot
 png("output/figures/tree-demo.png", width=1800, height=1800, res=300)
 plot(NULL, xlim=c(0,1), ylim=c(0,levels), axes=FALSE, xlab="", ylab="")
 
-# ===== 标记哪些节点在 true path 上 =====
+# nodes on true path
 true_nodes <- list()
 for (l in 1:levels) true_nodes[[l]] <- rep(FALSE, nodes_per_level[l])
 
@@ -75,7 +71,7 @@ for (leaf in highlight_leaves) {
   }
 }
 
-# ===== 画边 =====
+# edges
 for (l in 1:(levels-1)) {
   for (i in 1:nodes_per_level[l]) {
     parent <- coords[[l]][i,]
@@ -93,7 +89,7 @@ for (l in 1:(levels-1)) {
   }
 }
 
-# ===== 画节点（严格匹配边颜色）=====
+# nodes
 for (l in 1:levels) {
   for (i in 1:nodes_per_level[l]) {
     points(coords[[l]][i,1], coords[[l]][i,2],
@@ -104,7 +100,7 @@ for (l in 1:levels) {
   }
 }
 
-# ===== 黑色标签（上方）=====
+# true labels
 for (l in 1:levels) {
   text(coords[[l]],
        labels=labels[[l]],
@@ -113,7 +109,7 @@ for (l in 1:levels) {
        col="black")
 }
 
-# ===== 🔴 红色 estimated（右上角）=====
+# estimated labels
 x_offset <- 0.05
 y_offset <- 0.2
 
@@ -129,7 +125,6 @@ text(coords[[3]][4,1] + x_offset, coords[[3]][4,2] + y_offset,
 text(coords[[4]][8,1] + x_offset, coords[[4]][8,2] + y_offset,
      labels="4", col="red", cex=1.2, font=2)
 
-# ===== legend（完全修复版）=====
 legend("topright",
        legend=c("True", "Estimated", "Not sampled"),
        lty=c(1,1,1),

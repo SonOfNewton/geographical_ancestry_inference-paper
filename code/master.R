@@ -5,7 +5,7 @@
 
 # Before running this script, please set the working directory (setwd()) to the root directory of the project 
 # Ensure all dependencies are installed
-pkgs <- c("gaia","igraph","ggplot2","tidyverse","ggpubr","parallel","sf","terra","viridis","dplyr","rnaturalearth","spdep","here") 
+pkgs <- c("gaia","igraph","ggplot2","tidyverse","ggpubr","parallel","sf","terra","viridis","dplyr","rnaturalearth","spdep","jsonlite","here") 
 
 # install if not installed (nothing to do with updates)
 new.packages <- pkgs[!(pkgs %in% installed.packages()[,"Package"])]
@@ -27,7 +27,8 @@ if (usecores < 1) usecores <- 1
 
 #generate folders if not existent
 folders <- c(here('output'),here('output','figures'),here('output','tables'),
-             here('data'),here('data','trees'),here('data','math'),here('data','geo'),here('data','pop'))
+             here('data'),here('data','trees'),here('data','math'),here('data','geo'),here('data','pop'),
+             here('data','mpr'),here('data','flux'),here('data','genetics'),here('data','genetics','subsets'))
 lapply(folders, dir.create, recursive = TRUE, showWarnings = FALSE)
 
 # load all functions required
@@ -75,8 +76,8 @@ system2(command = "bash",args = c(here("code", "generation", "slim_empirical.sh"
 message("\n successfully generated tree sequence data for figure 3\n\n")
 
 source(here("code", "simulation", "select_worlds.R"),verbose=FALSE)
-system2(command = "bash",args = c(here("code", "simulation", "run_gaia.sh"), my_world, "friction", usecores))
-system2(command = "bash",args = c(here("code", "simulation", "run_gaia.sh"), my_world, "naive", usecores))
+system2(command = "bash",args = c(here("code", "simulation", "run_gaia_afro-eurasia.sh"), my_world, "friction", usecores))
+system2(command = "bash",args = c(here("code", "simulation", "run_gaia_afro-eurasia.sh"), my_world, "naive", usecores))
 message("\n simulation complete\n\n")
 
 source(here("code", "visualization", "compare_flux.R"),verbose=FALSE)
@@ -88,7 +89,14 @@ my_world = "asia-americas"
 source(here("code", "generation", "data_preparation.R"),verbose=FALSE)
 message("\n data preparation complete\n\n")
 
+source(here("code", "simulation", "gene_data_americas.R"),verbose=FALSE)
+message("\n prepare tree sequence data complete\n\n")
 
+source(here("code", "simulation", "gaia_asia-americas.R"),verbose=FALSE)
+message("\n simulation complete\n\n")
+
+source(here("code", "visualization", "density_distribution_through_time.R"),verbose=FALSE)
+message("\n visualization complete\n\n")
 
 # End
 message("\n End of master.R. Thanks and have a good day! \n\n")

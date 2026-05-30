@@ -12,7 +12,7 @@ state_sets = 1:nrow(cost.mat)   # each grid represents one state (another choice
 
 # cells to sample from (originate from make-data.R in GAIA paper)
 set.seed(1123581321L)
-D = data_full(chromosome=18L, world="afro-eurasia", short=TRUE)
+D = process_genetic_data_afroeurasia(chromosome=18L, short=TRUE)
 data = D$data
 write.csv(D$data, file=sprintf("data/genetics/sample_states_%s.csv", world), row.names=FALSE)   # cell ID for all sampled individuals
 

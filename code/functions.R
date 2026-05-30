@@ -287,19 +287,17 @@ true_flux <- function(true_node_states, ts, times, cost.mat, neighbor.mat,
 }
 
 
-# process real tree sequence data 
+# process real tree sequence data for afro-eurasia case study (originated from data_full() in GAIA paper)
 source("code/generation/proj.R")
-data_full = function(chromosome, world="afro-eurasia", short=TRUE)
+process_genetic_data_afroeurasia = function(chromosome, short=TRUE)
 {
   if (short)
   {
-    tsfile = sprintf("data/genetics/hgdp_tgp_sgdp_high_cov_ancients_chr%d_p.dated.trees",
-                     chromosome)
+    tsfile = sprintf("data/genetics/hgdp_tgp_sgdp_high_cov_ancients_chr%d_p.dated.trees", chromosome)
   }
   else
   {
-    tsfile = sprintf("data/genetics/hgdp_tgp_sgdp_high_cov_ancients_chr%d_q.dated.trees",
-                     chromosome)
+    tsfile = sprintf("data/genetics/hgdp_tgp_sgdp_high_cov_ancients_chr%d_q.dated.trees", chromosome)
   }
   
   ts = treeseq_load(tsfile)
@@ -387,7 +385,7 @@ data_full = function(chromosome, world="afro-eurasia", short=TRUE)
     , crs=WGS84
   ), crs=st_crs(GRS80))
   
-  landgrid = st_read(sprintf("data/geo/landgrid_%s.gpkg", world), quiet=TRUE)
+  landgrid = st_read("data/geo/landgrid_afro-eurasia.gpkg", quiet=TRUE)
   
   sample_locations_hex = cbind(
     node_id=coords$node_id,
@@ -408,7 +406,7 @@ data_full = function(chromosome, world="afro-eurasia", short=TRUE)
 }
 
 
-# extract samples from preprocessed tree sequence data
+# extract samples from preprocessed tree sequence data (can be used in both case studies)
 data_subsample = function(D)
 {
   ts = D$ts
@@ -426,7 +424,6 @@ data_subsample = function(D)
   nodes_to_keep = nodes$node_id[which(nodes$individual_id %in% indivs)]
   idx = which(dat[,1] %in% nodes_to_keep)
   ts2 = treeseq_simplify(ts, nodes_to_keep, node.map=TRUE)
-  nodes = treeseq_nodes(ts2)
   node_ids = attr(ts2, 'node.map')[dat[idx, 1]+1]
   dat2 = cbind(node_id=node_ids, state_id=dat[idx, 2])
   coords = cbind(node_id=node_ids, D$sample.coords[idx, 2:3])
@@ -451,4 +448,187 @@ get_y <- function(world="afro-eurasia", map, timedepth){
     y = rbind(y, x[idx,2:3])
   }
   return(y)
+}
+
+
+# process real tree sequence data for asia-americas case study 
+process_genetic_data_asiaamericas = function(chromosome, short=TRUE)
+{
+  if (short)
+  {
+    tsfile = sprintf("data/genetics/hgdp_tgp_sgdp_high_cov_ancients_chr%d_p.dated.trees", chromosome)
+  }
+  else
+  {
+    tsfile = sprintf("data/genetics/hgdp_tgp_sgdp_high_cov_ancients_chr%d_q.dated.trees", chromosome)
+  }
+  ts = treeseq_load(tsfile)
+  
+  # parse population metadata for ethnic group information
+  pops = treeseq_populations(ts)
+  pop_metadata_list = pops[, "metadata"]
+  
+  pop_df <- bind_rows(lapply(seq_along(pop_metadata_list), function(i) {
+    raw_bytes <- pop_metadata_list[[i]]
+    name <- "Unknown"
+    if (length(raw_bytes) > 0) {
+      json_str <- rawToChar(as.raw(raw_bytes))
+      parsed_json <- tryCatch(fromJSON(json_str), error = function(e) list())
+      if (!is.null(parsed_json$name)){
+        name <- parsed_json$name
+      } 
+    }
+    data.frame(population_id = i - 1, name = name, stringsAsFactors = FALSE)
+  }))
+  
+  target_pop_ids <- pop_df %>% filter(name %in% target_names) %>% pull(population_id)
+  
+  # parse individual metadata to obtain lat-long for filtering
+  inds = treeseq_individuals(ts)
+  loc_list = inds[, "location"]
+  
+  ind_df <- bind_rows(lapply(seq_along(loc_list), function(i) {
+    loc <- loc_list[[i]]
+    lat <- NA; lon <- NA
+    if (length(loc) >= 2) {
+      lat <- as.numeric(loc[1])
+      lon <- as.numeric(loc[2])
+    }
+    data.frame(individual_id = i - 1, lat = lat, lon = lon, stringsAsFactors = FALSE)
+  }))
+  
+  # filter
+  nodes = as.data.frame(treeseq_nodes(ts))
+  
+  valid_nodes <- nodes %>%
+    filter(is_sample == 1) %>%
+    filter(population_id %in% target_pop_ids) %>%
+    left_join(ind_df, by = "individual_id") %>%
+    filter(!is.na(lat) & !is.na(lon))
+  
+  filtered_node_ids <- valid_nodes$node_id
+  
+  # prune tree sequence
+  ts_simpl = treeseq_simplify(ts, filtered_node_ids)
+  
+  edges = treeseq_edges(ts_simpl)
+  etab = table(edges$parent_id)
+  ignore_parent = as.integer(names(which(etab > quantile(etab, 0.98))))   # delete nodes with exceptionally high in-degree or out-degree
+  etab = table(edges$child_id[edges$child_id >= treeseq_num_samples(ts_simpl)])
+  ignore_child = as.integer(names(which(etab > quantile(etab, 0.98))))
+  
+  ts_simpl3 = treeseq_drop_edges(ts_simpl, ignore_parent, ignore_child)
+  final_inds = treeseq_individuals(ts_simpl3)
+  final_loc_list = final_inds[, "location"]
+  
+  new_ind_df <- bind_rows(lapply(seq_along(final_loc_list), function(i) {
+    loc <- final_loc_list[[i]]
+    lat <- NA; lon <- NA
+    if (length(loc) >= 2) {
+      lat <- as.numeric(loc[1])
+      lon <- as.numeric(loc[2])
+    }
+    # individual_id start from 0
+    data.frame(individual_id = i - 1, lat = lat, lon = lon, stringsAsFactors = FALSE)
+  }))
+  
+  final_nodes = as.data.frame(treeseq_nodes(ts_simpl3))
+  
+  final_samples = final_nodes %>% 
+    filter(is_sample == 1) %>%
+    left_join(new_ind_df, by = "individual_id") %>%
+    filter(!is.na(lat) & !is.na(lon))
+  
+  node_ids = final_samples$node_id
+  xy = as.matrix(final_samples[, c("lon", "lat")])
+  
+  # projection
+  coords = st_transform(st_as_sf(
+    data.frame(node_id = node_ids, lon = xy[,1], lat = xy[,2]), 
+    coords = c("lon", "lat"), 
+    crs = 4326, agr = "constant"
+  ), crs = target_crs)
+  
+  landgrid = st_read("data/geo/landgrid_asia-americas.gpkg", quiet=TRUE)
+  if (st_crs(landgrid)$proj4string != target_crs) {
+    landgrid <- st_transform(landgrid, crs = target_crs)
+  }
+  
+  sample_locations_hex = cbind(
+    node_id = coords$node_id,
+    state_id = st_nearest_feature(coords, st_centroid(landgrid))
+  )
+  
+  sample_coords = cbind(node_id = node_ids, st_coordinates(coords))
+  
+  list(
+    ts = ts_simpl3,
+    data = sample_locations_hex,
+    sample.coords = sample_coords
+  )
+}
+
+
+# summary of sampled tree sequence
+print_summary_stats <- function(D) {
+  cat("total number of kept nodes: ", treeseq_num_nodes(D$ts), "\n")
+  cat("total number of kept edges: ", treeseq_num_edges(D$ts), "\n")
+  cat("number of kept samples (chromosomes): ", nrow(D$sample.coords), "\n")
+  cat("number of grid cells that the samples cover: ", length(unique(D$data[, "state_id"])), "\n")
+  cat("number of local genealogies (recombination sites): ", length(unique(c(treeseq_edges(D$ts)$left, treeseq_edges(D$ts)$right))), "\n")
+}
+
+
+# display information of contemporary samples
+inspect_tree_nodes <- function(D, n_show = 10) {
+  pops <- treeseq_populations(D$ts)
+  pop_metadata_list <- pops[, "metadata"]
+  pop_names <- sapply(pop_metadata_list, function(raw_bytes) {
+    if (length(raw_bytes) > 0) {
+      parsed <- tryCatch(jsonlite::fromJSON(rawToChar(as.raw(raw_bytes))), error = function(e) list())
+      if (!is.null(parsed$name)) return(parsed$name)
+    }
+    return("Unknown")
+  })
+  pop_df <- data.frame(population_id = 0:(length(pop_names)-1), pop_name = pop_names, stringsAsFactors = FALSE)
+  nodes <- as.data.frame(treeseq_nodes(D$ts))
+  states <- as.data.frame(D$data)
+  coords <- as.data.frame(D$sample.coords)
+  
+  detail_df <- nodes %>%
+    filter(is_sample == 1) %>%
+    left_join(pop_df, by = "population_id") %>%
+    left_join(states, by = "node_id") %>%
+    left_join(coords, by = "node_id") %>%
+    select(node_id, individual_id, pop_name, time, state_id, X, Y)
+  
+  print(head(detail_df, n_show))
+  cat(sprintf("... left %d samples ...\n", max(0, nrow(detail_df) - n_show)))
+}
+
+
+# visualization for asia-americas
+plot_spatial_distribution <- function(D, title = "", landgrid_path = "data/geo/landgrid_asia-americas.gpkg") {
+  landgrid <- st_read(landgrid_path, quiet = TRUE)
+  if (st_crs(landgrid)$proj4string != target_crs) {
+    landgrid <- st_transform(landgrid, crs = target_crs)
+  }
+  
+  coords_df <- as.data.frame(D$sample.coords)
+  coords_sf <- st_as_sf(coords_df, coords = c("X", "Y"), crs = target_crs, agr = "constant")
+  
+  p <- ggplot() +
+    geom_sf(data = landgrid, fill = "gray95", color = "white", linewidth = 0.2) +
+    geom_sf(data = coords_sf, color = "darkred", size = 1.8, alpha = 0.7) +
+    theme_minimal() +
+    labs(
+      title = title,
+      x = "", y = ""
+    ) +
+    theme(
+      plot.title = element_text(face = "bold", size = 14),
+      panel.grid.major = element_line(color = "gray90")
+    )
+  
+  return(p)
 }

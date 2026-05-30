@@ -1,6 +1,5 @@
 #!/bin/bash
 
-# 检查参数
 if [ "$#" -ne 3 ]; then
     echo "Usage: bash ooa_selected.sh <world> <map> <parallel>"
     echo "Example: bash ooa_selected.sh afro-eurasia friction 15"
@@ -27,7 +26,7 @@ echo "Starting parallel replications for sampled replications in $SELECTION_FILE
 
 tail -n +2 "$SELECTION_FILE" | tr -d '"' | tr -d '\r' | xargs -I {} -P "$PARALLEL" bash -c '
     echo "Running selected replication {} with world=$1, map=$2 ..."
-    Rscript --vanilla code/simulation/gaia.R "{}" "$1" "$2"
+    Rscript --vanilla code/simulation/gaia_afro-eurasia.R "{}" "$1" "$2"
 ' _ "$WORLD" "$MAP"
 
 # merge flux_strait files (necessary for parallel)

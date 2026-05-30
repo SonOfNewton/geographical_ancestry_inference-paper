@@ -17,7 +17,7 @@ count_friction <- tabulate(y_friction[,2], nrow(coords))
 count_naive <- tabulate(y_naive[,2], nrow(coords))
 
 # plot
-output_file <- sprintf("output/figures/compare_ancestor_estimates_%s.png", WORLD)
+output_file <- sprintf("output/figures/compare_ancestor_estimates_%s.pdf", WORLD)
 pdf(output_file, width = 7, height = 6)
 
 par(mar=c(1,1,2,1))

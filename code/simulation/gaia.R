@@ -16,12 +16,11 @@ MAP = args[3]    # friction, naive
 data = read.csv(sprintf("data/genetics/sample_states_%s.csv", WORLD))
 pops_to_sample = sort(unique(data[,2])-1L)
 
+cost.mat = data.matrix(read.csv(sprintf("data/geo/landgrid_costmat_%s_%s.csv", MAP, WORLD)))
 if (MAP=="friction"){
-cost.mat = data.matrix(read.csv("data/geo/landgrid_costmat_friction_afro-eurasia.csv"))
-neighbor.mat = data.matrix(read.csv("data/geo/landgrid_adjmat_friction_afro-eurasia.csv"))
+neighbor.mat = data.matrix(read.csv(sprintf("data/geo/landgrid_adjmat_%s_%s.csv", MAP, WORLD)))
 } else if (MAP=="naive"){
-cost.mat = data.matrix(read.csv("data/geo/landgrid_costmat_naive_afro-eurasia.csv"))
-neighbor.mat = data.matrix(read.csv("data/geo/landgrid_adjmat_afro-eurasia.csv", row.names=1))  #need to specify row names
+neighbor.mat = data.matrix(read.csv(sprintf("data/geo/landgrid_adjmat_%s_%s.csv", MAP, WORLD), row.names=1))  #need to specify row names
 }
 dimnames(cost.mat) = NULL
 dimnames(neighbor.mat) = NULL

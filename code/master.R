@@ -5,7 +5,7 @@
 
 # Before running this script, please set the working directory (setwd()) to the root directory of the project 
 # Ensure all dependencies are installed
-pkgs <- c("gaia","igraph","ggplot2","tidyverse","ggpubr","parallel","sf","terra","igraph","viridis","here") 
+pkgs <- c("gaia","igraph","ggplot2","tidyverse","ggpubr","parallel","sf","terra","viridis","dplyr","rnaturalearth","spdep","here") 
 
 # install if not installed (nothing to do with updates)
 new.packages <- pkgs[!(pkgs %in% installed.packages()[,"Package"])]
@@ -14,7 +14,7 @@ lapply(pkgs, library, character.only = TRUE)
 
 # SLiM application needs to be installed
 # required input files: 
-# in data/geo: 2020_walking_only_friction_surface.geotiff, landgrid_adjmat_afro-eurasia.csv landgrid_afro-eurasia.gpkg
+# in data/geo: 2020_walking_only_friction_surface.geotiff, landgrid_adjmat_naive_afro-eurasia.csv landgrid_afro-eurasia.gpkg
 # in data/pop: popc_5000BC.asc (and other files including 10000BC, 0AD, 1500AD, 2000AD)
 # in data/genetics: hgdp_tgp_sgdp_high_cov_ancients_chr18_p.dated.trees
 
@@ -84,7 +84,7 @@ source(here("code", "visualization", "compare_ancestor_estimates.R"),verbose=FAL
 message("\n visualization complete\n\n")
 
 # ##################### for figure 4 ##############################################
-my_world == "asia-americas"
+my_world = "asia-americas"
 source(here("code", "generation", "data_preparation.R"),verbose=FALSE)
 message("\n data preparation complete\n\n")
 

@@ -89,7 +89,7 @@ process_one_file <- function(i, mode, model, real_case) {
 # visualize landgrid together with cell ID and adjacency
 plot_landgrid_visualization <- function(world = "afro-eurasia", label_cex = 0.7, point_cex = 0.5) {
   landgrid = st_read(sprintf("data/geo/landgrid_%s.gpkg", world), quiet=TRUE)
-  adjmat = data.matrix(read.csv(sprintf("data/geo/landgrid_adjmat_%s.csv", world), row.names=1))
+  adjmat = data.matrix(read.csv(sprintf("data/geo/landgrid_adjmat_naive_%s.csv", world), row.names=1))
   
   centroids = st_centroid(landgrid$geom)
   coords = st_coordinates(centroids)
@@ -125,7 +125,7 @@ plot_landgrid_visualization <- function(world = "afro-eurasia", label_cex = 0.7,
 # create cost matrix and (weighted) adjacency matrix for a given world setting (plus visualization)
 create_friction_map <- function(world = "afro-eurasia", visualize = FALSE) {
   landgrid = st_read(sprintf("data/geo/landgrid_%s.gpkg", world), quiet=TRUE)
-  adjmat = data.matrix(read.csv(sprintf("data/geo/landgrid_adjmat_%s.csv", world), row.names=1))
+  adjmat = data.matrix(read.csv(sprintf("data/geo/landgrid_adjmat_naive_%s.csv", world), row.names=1))
   
   # MAP friction surface
   friction_raster = rast("data/geo/2020_walking_only_friction_surface.geotiff")

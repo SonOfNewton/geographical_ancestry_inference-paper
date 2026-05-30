@@ -1,13 +1,11 @@
+# note: this script has not been parallelized yet
 
-
-# ==========================================
-# 1. 设定全局参数与加载空间矩阵
-# ==========================================
+##### parameters #####
 world <- "afro-eurasia" 
 num_reps <- 200   #number of SLiM runs, controlled in slim_empirical.sh
 
 cost.mat = data.matrix(read.csv("data/geo/landgrid_costmat_naive_afro-eurasia.csv", row.names=1))
-neighbor.mat = data.matrix(read.csv("data/geo/landgrid_adjmat_afro-eurasia.csv", row.names=1))
+neighbor.mat = data.matrix(read.csv("data/geo/landgrid_adjmat_naive_afro-eurasia.csv", row.names=1))
 dimnames(cost.mat) = NULL
 dimnames(neighbor.mat) = NULL
 state_sets = 1:nrow(cost.mat)   # each grid represents one state (another choice is setting multiple grid to the same state to account for them as a whole)

@@ -1,3 +1,4 @@
+# compute estimation error under a specific model setting
 process_one_file <- function(i, mode, model, real_case) {
   
   ts_file <- sprintf("data/trees/math-tree-%s-%s-%s.trees", mode, real_case, i)
@@ -20,7 +21,7 @@ process_one_file <- function(i, mode, model, real_case) {
   populated_demes <- unique(sample_nodes$population_id)
   
   set.seed(0)
-  num_demes_to_sample <- min(20, MAXDEME)
+  num_demes_to_sample <- min(20, MAXDEME)   # sample 20 demes or less
   pops_to_sample <- sample(populated_demes, num_demes_to_sample, replace = FALSE)
   sample_nodes_to_sample <- sample_nodes[sample_nodes$population_id %in% pops_to_sample, ]
   
@@ -29,6 +30,7 @@ process_one_file <- function(i, mode, model, real_case) {
     return(sample(x, 1, replace = FALSE))
   }
   
+  # sample 1 individual from each selected deme
   indivs <- unlist(unname(tapply(
     sample_nodes_to_sample$individual_id,
     sample_nodes_to_sample$population_id,
@@ -58,8 +60,8 @@ process_one_file <- function(i, mode, model, real_case) {
   )
   
   comparison_df <- comparison_df[order(comparison_df$time, decreasing = TRUE), ]
-  comparison_df$distance <- cost_mat_error[cbind(comparison_df$real_state, comparison_df$est_state)]
-  comparison_df$time_bin <- cut(comparison_df$time, breaks = 4, include.lowest = TRUE)
+  comparison_df$distance <- cost_mat_error[cbind(comparison_df$real_state, comparison_df$est_state)]  # piecewise average error distance
+  comparison_df$time_bin <- cut(comparison_df$time, breaks = 4, include.lowest = TRUE)  # bins with equal time span
   
   node_counts <- aggregate(distance ~ time_bin, data = comparison_df, FUN = length)
   mean_errors <- aggregate(distance ~ time_bin, data = comparison_df, FUN = function(x) mean(x, na.rm = TRUE))
@@ -81,4 +83,372 @@ process_one_file <- function(i, mode, model, real_case) {
   
   message(paste("Processed file:", i, " | Mode:", mode, " | Model:", model))
   return(row_data)
+}
+
+
+# visualize landgrid together with cell ID and adjacency
+plot_landgrid_visualization <- function(world = "afro-eurasia", label_cex = 0.7, point_cex = 0.5) {
+  landgrid = st_read(sprintf("data/geo/landgrid_%s.gpkg", world), quiet=TRUE)
+  adjmat = data.matrix(read.csv(sprintf("data/geo/landgrid_adjmat_%s.csv", world), row.names=1))
+  
+  centroids = st_centroid(landgrid$geom)
+  coords = st_coordinates(centroids)
+  output_file <- sprintf("output/figures/landgrid_visualization_%s.pdf", world)
+  pdf(output_file, width=16, height=8)
+  par(mfrow=c(1,2), mar=c(1,1,3,1))
+  
+  # left panel: cell id
+  plot(landgrid$geom, border="gray50", col="gray95", lwd=0.5, main="landgrid cells with ID numbers")
+  text(coords[,1], coords[,2], labels=1:nrow(coords), 
+       #col="red", cex=0.3, font=1)
+       col="red", cex=label_cex, font=2)
+  
+  # right panel: adjacency
+  plot(landgrid$geom, border="gray80", col="white", lwd=0.5, main="adjacency network")
+  num_cells = nrow(adjmat)
+  for (i in 1:(num_cells-1)) {
+    for (j in (i+1):num_cells) {
+      if (adjmat[i, j] == 1) {
+        lines(c(coords[i,1], coords[j,1]), 
+              c(coords[i,2], coords[j,2]), 
+              col="#0000FF55", lwd=1)
+      }
+    }
+  }
+  points(coords[,1], coords[,2], pch=20, col="black", cex=point_cex)
+  
+  dev.off()
+  message(sprintf("saved figure to: %s", output_file))
+}
+
+
+# create cost matrix and (weighted) adjacency matrix for a given world setting (plus visualization)
+create_friction_map <- function(world = "afro-eurasia", visualize = FALSE) {
+  landgrid = st_read(sprintf("data/geo/landgrid_%s.gpkg", world), quiet=TRUE)
+  adjmat = data.matrix(read.csv(sprintf("data/geo/landgrid_adjmat_%s.csv", world), row.names=1))
+  
+  # MAP friction surface
+  friction_raster = rast("data/geo/2020_walking_only_friction_surface.geotiff")
+  
+  # transform the coordinate system of the polygonal mesh to be consistent with that of the raster image
+  landgrid_proj = st_transform(landgrid, crs(friction_raster))
+  
+  # map pixels into grid cells
+  friction_extract = terra::extract(friction_raster, vect(landgrid_proj), fun=mean, na.rm=TRUE)
+  cell_friction = friction_extract[, 2]   # second column is average
+  
+  # compute migration cost between adjacent cells
+  num_cells = nrow(adjmat)
+  raw_adj_cost_matrix = matrix(0, nrow=num_cells, ncol=num_cells)
+  
+  for (i in 1:num_cells) {
+    for (j in 1:num_cells) {
+      if (adjmat[i, j] == 1) {
+        # distance in meters
+        dist_meters = as.numeric(st_distance(st_centroid(landgrid$geom[i]), st_centroid(landgrid$geom[j])))
+        # cost = average friction (min/meter) × actual distance (meter)
+        raw_adj_cost_matrix[i, j] = ((cell_friction[i] + cell_friction[j]) / 2) * dist_meters
+      }
+    }
+  }
+  
+  # compute migration cost between all cells
+  g = graph_from_adjacency_matrix(raw_adj_cost_matrix, mode="undirected", weighted=TRUE)
+  full_cost_matrix = distances(g, mode="all")
+  colnames(full_cost_matrix) = 1:num_cells
+  rownames(full_cost_matrix) = 1:num_cells
+  write.csv(full_cost_matrix, file=sprintf("data/geo/landgrid_costmat_friction_%s.csv", world), row.names=FALSE)
+  write.csv(raw_adj_cost_matrix, file=sprintf("data/geo/landgrid_adjmat_friction_%s.csv",world), row.names=FALSE)
+  message("matrices saved")
+  
+  # visualization
+  if (visualize == TRUE){
+    landgrid$friction = cell_friction
+    coords = st_coordinates(st_centroid(landgrid$geom))
+    
+    p = ggplot(data = landgrid) +
+      geom_sf(aes(fill = friction), color = "gray20", linewidth = 0.1) +
+      scale_fill_viridis(option = "magma", direction = -1, name = "friction\n(mins/meter)") +
+      theme_void() +
+      theme(
+        text = element_text(size = 16),
+        plot.title = element_text(size = 20, face = "bold", hjust = 0.5, margin = margin(b = 8)),
+        plot.subtitle = element_text(size = 16, hjust = 0.5, margin = margin(b = 12)),
+        legend.position = "right",
+        legend.key.size = unit(1.4, "cm"),          
+        legend.key.height = unit(1.8, "cm"),       
+        legend.key.width  = unit(1.1, "cm"),
+        legend.text = element_text(size = 15),
+        legend.title = element_text(size = 17, face = "bold", margin = margin(b = 10)),
+        legend.spacing.y = unit(0.6, "cm"),         
+        legend.margin = margin(t = 10, r = 15, b = 10, l = 5), 
+        plot.margin = margin(10, 20, 10, 10)
+      )
+    
+    output_file = sprintf("output/figures/landgrid_friction_heatmap_%s.pdf", world)
+    pdf(output_file, width = 12, height = 8)
+    print(p)
+    dev.off()
+    message(sprintf("saved figure to: %s", output_file))
+  }
+}
+
+
+# create population capacity data for a given time (plus visualization)
+create_population_capacity <- function(world = "afro-eurasia", time="5000BC", scaling = "sqrt", visualize = FALSE){
+  pop_raster = rast(sprintf("data/pop/popc_%s.asc", time))
+  landgrid = st_read(sprintf("data/geo/landgrid_%s.gpkg", world), quiet=TRUE)
+  
+  landgrid_proj = st_transform(landgrid, crs(pop_raster))   # align coordinate system
+  pop_extract = terra::extract(pop_raster, vect(landgrid_proj), fun=sum, na.rm=TRUE)   # population within each grid cell
+  raw_cell_pop = pop_extract[, 2]
+  raw_cell_pop[is.na(raw_cell_pop)] <- 0
+  
+  # population scaling
+  if(scaling == "uniform"){
+    TARGET_GLOBAL_K = 100000   # larger population size will result in heavier computation costs in tree sequence generation and simulation
+    scale_factor = TARGET_GLOBAL_K / sum(raw_cell_pop)
+    scaled_K = raw_cell_pop * scale_factor
+  } else if(scaling == "sqrt"){
+    scaled_K = sqrt(raw_cell_pop)/1    # magic number used to control computation complexity
+  } else if(scaling == "complex"){
+    scaled_K = raw_cell_pop/(0.1*sqrt(sum(raw_cell_pop)))    # magic number used to control computation complexity
+  } else if (scaling =="direct"){   #only for 5000BC
+    scaled_K = raw_cell_pop/100
+  }
+  
+  final_K = round(scaled_K)
+  final_K[raw_cell_pop > 0 & final_K == 0] <- 1
+  
+  write.table(final_K, 
+              file=sprintf("data/pop/landgrid_capacity_%s_%s_%s.csv", world, time, scaling), 
+              sep=",", 
+              row.names=FALSE, 
+              col.names=FALSE)
+  message("population data saved")
+  
+  # visualization
+  if (visualize == TRUE){
+    landgrid$K = final_K
+    landgrid$plot_K = ifelse(landgrid$K < 0, NA, landgrid$K)
+    
+    p = ggplot(data = landgrid) +
+      geom_sf(aes(fill = plot_K), color = "gray20", linewidth = 0.1) +
+      scale_fill_viridis(
+        option = "mako",
+        direction = -1,
+        name = "carrying capacity\n(individuals)",
+        na.value = "grey80"
+      ) +
+      theme_void() +
+      theme(
+        text = element_text(size = 16),
+        legend.position = "right",
+        legend.key.size = unit(1.4, "cm"),           
+        legend.key.height = unit(1.8, "cm"),         
+        legend.key.width  = unit(1.1, "cm"),
+        legend.text = element_text(size = 15),
+        legend.title = element_text(size = 17, face = "bold", margin = margin(b = 10)),
+        legend.spacing.y = unit(0.6, "cm"),
+        legend.margin = margin(t = 10, r = 15, b = 10, l = 5),
+        plot.margin = margin(10, 20, 10, 10)
+      )
+  
+    output_file = sprintf("output/figures/capacity_%s_%s_%s.pdf", world, time, scaling)
+    pdf(output_file, width = 12, height = 8)
+    print(p)
+    dev.off()
+    message(sprintf("saved figure to: %s", output_file))
+  }
+}
+
+# extract true flux from SLiM data
+true_flux <- function(true_node_states, ts, times, cost.mat, neighbor.mat,
+                     sample_sets, state_sets)
+{
+  storage.mode(cost.mat) = "double"
+  adjacency_matrix = Matrix::Matrix(neighbor.mat, sparse = TRUE)
+  adjacency_matrix = methods::as(adjacency_matrix, "generalMatrix")
+  h = .Call(C_treeseq_discrete_mpr_edge_history, ts@treeseq, 
+            true_node_states, cost.mat, adjacency_matrix, FALSE)
+  H = data.frame(edge_id = rep.int(0:(length(h[[1]]) - 1L), 
+                                   times = h[[3]]), state_id = do.call(c, h[[1]]), time = do.call(c, 
+                                                                                                  h[[2]]))
+  H = structure(H, node.state = true_node_states, path.offset = c(cumsum(h[[3]]) - 
+                                                                    h[[3]], nrow(H)) + as.integer(FALSE))
+  num_state_sets = as.numeric(max(state_sets))
+  num_sample_sets = as.numeric(max(sample_sets))
+  num_time_bins = length(times) - 1
+  flux = .Call(C_treeseq_discrete_mpr_ancestry_flux, ts@tree, attr(H, 
+                                                                   "path.offset"), H$state_id, H$time, as.integer(num_state_sets), 
+               state_sets - 1L, as.integer(num_sample_sets), sample_sets - 
+                 1L, times)
+  return (flux)
+}
+
+
+# process real tree sequence data 
+source("code/generation/proj.R")
+data_full = function(chromosome, world="afro-eurasia", short=TRUE)
+{
+  if (short)
+  {
+    tsfile = sprintf("data/genetics/hgdp_tgp_sgdp_high_cov_ancients_chr%d_p.dated.trees",
+                     chromosome)
+  }
+  else
+  {
+    tsfile = sprintf("data/genetics/hgdp_tgp_sgdp_high_cov_ancients_chr%d_q.dated.trees",
+                     chromosome)
+  }
+  
+  ts = treeseq_load(tsfile)
+  samples = treeseq_individuals(ts)
+  num_samples = nrow(samples)
+  nodes = treeseq_nodes(ts)
+  
+  # keep georeferenced samples only
+  {
+    index = logical(num_samples)
+    for (i in 1:num_samples)
+    {
+      s = samples[i, ]
+      if (length(s[[2]]))
+        index[i] = TRUE
+    }
+    filtered_samples = samples[index,]
+    
+    filtered_node_ids = nodes[
+      nodes$individual_id %in% unlist(filtered_samples[,1]), "node_id"]
+    
+    ts_simpl = treeseq_simplify(ts, filtered_node_ids)
+    
+    samples = treeseq_individuals(ts_simpl)
+    nodes = treeseq_nodes(ts_simpl)
+    
+    sample_ids = unlist(samples[,1])
+    
+    # lons,lats of georeferenced samples
+    xy = t(apply(samples, 1, "[[", 2))[,2:1]
+    
+    # first pass, limit to african and eurasian samples
+    filter1 = xy[,1] > -30 
+    xy = xy[filter1, ]
+    sample_ids = sample_ids[filter1]
+    # finish by dropping australasian samples
+    filter2 = !(xy[,1] > 110 & xy[,2] < 18) 
+    xy = xy[filter2, ]
+    sample_ids = sample_ids[filter2]
+    sample_idx = match(sample_ids, nodes$individual_id)
+    
+    node_ids = nodes[
+      c(rbind(
+        sample_idx
+        , sample_idx+1L))
+      , 1L
+    ]
+    
+    ts_simpl2 = treeseq_simplify(ts_simpl, node_ids)
+    
+    # drop edges to nodes with insane number of parents or children
+    edges = treeseq_edges(ts_simpl2)
+    etab = table(edges$parent_id)
+    ignore_parent = as.integer(names(which(etab > quantile(etab, 0.98))))
+    etab = table(
+      edges$child_id[edges$child_id >= treeseq_num_samples(ts_simpl2)])
+    ignore_child = as.integer(names(which(etab > quantile(etab, 0.98))))
+    
+    ts_simpl3 = treeseq_drop_edges(ts_simpl2, ignore_parent, ignore_child)
+    
+    samples = treeseq_individuals(ts_simpl3)
+    nodes = treeseq_nodes(ts_simpl3)
+    
+    sample_ids = unlist(samples[,1])
+    
+    xy = t(apply(samples, 1, "[[", 2))[,2:1]
+    
+    sample_idx = match(sample_ids, nodes$individual_id)
+    
+    node_ids = nodes[
+      c(rbind(
+        sample_idx
+        , sample_idx+1L))
+      , 1L
+    ]
+  }
+  
+  coords = st_transform(st_as_sf(
+    data.frame(
+      node_id=node_ids,
+      lon=rep(xy[,1],each=2),
+      lat=rep(xy[,2],each=2)
+    )
+    , coords=c("lon", "lat")
+    , crs=WGS84
+  ), crs=st_crs(GRS80))
+  
+  landgrid = st_read(sprintf("data/geo/landgrid_%s.gpkg", world), quiet=TRUE)
+  
+  sample_locations_hex = cbind(
+    node_id=coords$node_id,
+    state_id=st_nearest_feature(
+      st_transform(coords, st_crs(landgrid))$geometry,
+      st_centroid(landgrid$geom)
+    )
+  )
+  
+  sample_coords = cbind(node_id=node_ids,
+                        st_coordinates(st_transform(coords, crs=st_crs(EEGRS80))))
+  
+  list(
+    ts=ts_simpl3,
+    data=sample_locations_hex,
+    sample.coords=sample_coords
+  )
+}
+
+
+# extract samples from preprocessed tree sequence data
+data_subsample = function(D)
+{
+  ts = D$ts
+  dat = D$data
+  nodes = treeseq_nodes(ts)
+  indivs = tapply(nodes$individual_id, nodes$population_id, function(i) {
+    indiv = unique(i)
+    if (length(indiv) > 1)
+      return (sample(indiv, 1L))
+    else
+      return (indiv)
+  })
+  if (indivs[1L] == -1L)
+    indivs = indivs[-1L]
+  nodes_to_keep = nodes$node_id[which(nodes$individual_id %in% indivs)]
+  idx = which(dat[,1] %in% nodes_to_keep)
+  ts2 = treeseq_simplify(ts, nodes_to_keep, node.map=TRUE)
+  nodes = treeseq_nodes(ts2)
+  node_ids = attr(ts2, 'node.map')[dat[idx, 1]+1]
+  dat2 = cbind(node_id=node_ids, state_id=dat[idx, 2])
+  coords = cbind(node_id=node_ids, D$sample.coords[idx, 2:3])
+  list(
+    ts=ts2,
+    data=dat2,
+    sample.coords=coords
+  )
+}
+
+
+# extract estimated location of oldest ancestors for all sampled replications
+get_y <- function(world="afro-eurasia", map, timedepth){
+  y = c()
+  selection_file <- sprintf("output/tables/selected_reps_%s.csv", world)
+  selected_reps_df <- read.csv(selection_file)
+  selected_rep_ids <- selected_reps_df$x
+  for (rep in selected_rep_ids) {
+    x = read.csv(sprintf("data/mpr/mpr_%s_%s_%s.csv", 
+                         world, map, rep))
+    idx = which(x$node_time == timedepth-1)
+    y = rbind(y, x[idx,2:3])
+  }
+  return(y)
 }

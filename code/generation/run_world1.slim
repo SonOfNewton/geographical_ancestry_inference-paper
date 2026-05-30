@@ -1,0 +1,129 @@
+initialize() {
+    initializeSLiMModelType("nonWF");
+    initializeTreeSeq();
+    defineConstant("ADJMATFILE", "data/geo/landgrid_adjmat_afro-eurasia_norownames.csv");
+    defineConstant("TREEFILE", "data/trees/empirical_tree_afro-eurasia-"+paste(REP)+".trees");
+    defineConstant("KFILE", "data/pop/landgrid_capacity_afro-eurasia_5000BC_sqrt.csv");
+    defineConstant("N", 177); // number of subpopulations
+    defineConstant("m", 0.001); // migration rate
+    defineConstant("e", 0.0); // extinction rate
+    initializeMutationType("m1", 0.5, "g", 0.0, 2);
+    initializeGenomicElementType("g1", m1, 1.0);
+    initializeGenomicElement(g1, 0, 1e8 - 1);
+    initializeMutationRate(0.0);
+    initializeRecombinationRate(1e-8);
+    initializeSex("A");
+}
+
+function (float)survival(integer x) {
+    ans = float(length(x));
+    c0 = which(x <= 1);
+    c1 = which(x < 55 & x > 1);
+    c2 = which(x >= 55);
+    ans[c0] = 0.6;
+    ans[c1] = 0.95;
+    ans[c2] = pmax(-0.038*x[c2] + 3.04, 0.0);  // survivorship at 80 is 0
+    return (ans);
+}
+
+reproduction(NULL, "F") {
+      if (individual.age >= 15 & individual.age <= 40) {
+          mate = subpop.sampleIndividuals(1, sex="M", minAge=15, maxAge=55);
+          if (mate.size() == 1)
+              subpop.addCrossed(individual, mate);
+      }
+}
+
+1 early() {
+    adjacency_matrix = asInteger(readCSV(ADJMATFILE).asMatrix());
+    defineGlobal("K_vec", c(asFloat(readCSV(KFILE, colNames=F).asMatrix())));
+    neighbors = matrix(rep(-1, N*6), N, 6);
+    for (i in 0:(N-1)) {
+        k = 0;
+        for (j in 0:(N-1)) {
+            if (j == i)
+                next;
+            if (c(adjacency_matrix[i,j]) == 1) {
+                neighbors[i, k] = j;
+                k = k + 1;
+            }
+        }
+        if (k == 0) stop("Disconnected subpopulations are not allowed");
+    }
+    defineConstant("SUBPOPN", neighbors);
+    for (i in 0:(N-1)) {
+        subpop = sim.addSubpop(i, (i == 57) ? 20 else 0);
+        if (i == 57)
+            subpop.individuals.age = c(0,2,5,7,10,12,15,17,20,22,25,27,30,32,35,37,40,42,45,47);
+    }
+    // optional: population track through time
+    // defineConstant("POP_OUTFILE", "data/pop/SLiM_pop_counts_world1_" + REP + ".csv");
+    // header = paste(c("cycle", "p" + 0:(N-1)), sep=",");
+    // writeFile(POP_OUTFILE, header, append=F);
+}
+
+early() {
+    // random migration
+    defineGlobal("K_local", K_vec);    
+    adults = sim.subpopulations.individuals[sim.subpopulations.individuals.age >= 15];
+    nAdults = length(adults);
+    nMigrants = rpois(1, nAdults * m);
+    migrants = sample(adults, nMigrants);
+    for (migrant in migrants)
+    {
+        if (migrant.age < 15) next;
+        tries = 0;
+        do {
+            j = sample(0:5, 1);
+            dest_id = c(SUBPOPN[migrant.subpopulation.id, j]);
+            tries = tries + 1;
+            if (dest_id != -1) break; 
+        } while (tries < 100);
+        if (dest_id == -1) {
+            cat(migrant.subpopulation.id);
+            cat("\n");
+            cat(SUBPOPN[migrant.subpopulation.id,]);            
+            stop("Failure to sample migrant subpopulation");
+        }
+        dest = sim.subpopulations[dest_id];
+        dest.takeMigrants(migrant);
+    }
+    // density-dependence and random extinctions
+    for (subpop in sim.subpopulations)
+    {
+        if (runif(1) < e) {
+            sim.killIndividuals(subpop.individuals);
+        } else {
+            indivs = subpop.individuals;
+            if (length(indivs)) {            
+                s = survival(indivs.age);
+                indivs.fitnessScaling = s;
+                
+                local_K = K_local[subpop.id];
+                if (local_K <= 0) {
+                    subpop.fitnessScaling = 0.0;
+                } else {
+                    subpop.fitnessScaling = local_K / (subpop.individualCount * mean(s));
+                }
+            }
+        }
+    }
+}
+late() {
+    sim.treeSeqRememberIndividuals(sim.subpopulations.individuals, permanent=F);
+    
+    // optional: population track through time
+    // if (sim.cycle == 1 | sim.cycle % 500 == 0) {
+    //     counts = sim.subpopulations.individualCount; 
+    //     out_line = paste(c(sim.cycle, counts), sep=",");
+    //     writeFile(POP_OUTFILE, out_line, append=T);
+    // }
+    
+    if (sum(sim.subpopulations.individualCount) == 0)
+        stop("Global extinction in cycle " + sim.cycle + ".");
+}
+
+7000 late() {
+    sim.treeSeqOutput(TREEFILE);
+    sim.simulationFinished();
+}

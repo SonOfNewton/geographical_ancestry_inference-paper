@@ -1,4 +1,4 @@
-# geographical_ancestry_inference-paper
+# Beyond straight lines: migration costs considering geography enhance tracing human genetic ancestry
 
 This repo contains the tex files (under ms) as well as SLiM and R files (under data) used for the simulations, analyses, and visualizations associated with the [manuscript](https) describing the gaia software.
 

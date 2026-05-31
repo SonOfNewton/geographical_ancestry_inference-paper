@@ -41,6 +41,9 @@ message("\n all functions loaded\n")
 source(here("code", "visualization", "tree_demo.R"),verbose=FALSE)
 message("\n successfully generated abstract illustration plot\n\n")
 
+source(here("code", "generation", "create_landgrid_math.R"),verbose=FALSE)
+message("\n network data prepared for figure 1 and 2\n\n")
+
 system2(command = "bash",args = c(here("code", "generation", "slim_math.sh"), "line", "naive", usecores))
 message("\n successfully generated tree data for figure 1\n\n")
 

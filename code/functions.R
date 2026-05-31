@@ -11,6 +11,8 @@ process_one_file <- function(i, mode, model, real_case) {
     MAXDEME = 20
   } else if (mode == "cube"){
     MAXDEME = 343
+  }else if (mode == "annulus"){
+    MAXDEME = 84
   }
   
   ts <- treeseq_load(ts_file)

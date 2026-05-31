@@ -65,6 +65,7 @@ message("\n successfully generated actual and estimated tree sequence plot\n\n")
 system2(command = "bash",args = c(here("code", "generation", "slim_math.sh"), "line", "friction", usecores))
 system2(command = "bash",args = c(here("code", "generation", "slim_math.sh"), "square", "friction", usecores))
 system2(command = "bash",args = c(here("code", "generation", "slim_math.sh"), "cube", "friction", usecores))
+system2(command = "bash",args = c(here("code", "generation", "slim_math.sh"), "annulus", "friction", usecores))
 message("\n successfully generated tree sequence data for figure 2\n\n")
 
 source(here("code", "visualization", "compare_friction_with_naive.R"),verbose=FALSE)

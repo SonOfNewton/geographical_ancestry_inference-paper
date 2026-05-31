@@ -35,7 +35,15 @@ initialize() {
         defineConstant("N", 343);              
         defineConstant("MAX_NEIGHBORS", 6);  
         defineConstant("INIT_DEME", 58);    
-        defineConstant("m", 0.005);
+        defineConstant("m", 0.005);    // Base migration rate
+    }
+    else if (TOPOLOGY == "annulus") {
+        defineConstant("ADJMATFILE", "data/math/adjmat_annulus.csv");
+        defineConstant("WEIGHTFILE", "data/math/annulus_weights.csv");
+        defineConstant("N", 84);
+        defineConstant("MAX_NEIGHBORS", 4);
+        defineConstant("INIT_DEME", 23);     
+        defineConstant("m", 0.005);    // Base migration rate        
     }
     else {
         stop("Unknown TOPOLOGY setting.");

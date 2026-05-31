@@ -1,4 +1,13 @@
+# scenarios: line, square, cube, annulus
+# each scenario output 4 files:
+# adjmat_scenario.csv (homogeneous, for SLiM)
+# costmat_scenario_naive.csv (homogeneous, for GAIA)
+# costmat_scenario_friction.csv (heterogeneous, for GAIA)
+# scenario_weights.csv (heterogeneous, for SLiM)
+
 ########## grid generation for line ########## 
+# appart from the heterogeneous line model used in figure 2, this part also prepares for the homogeneous line model used in figure 1.
+
 # naive adjcency matrix and cost matrix
 n <- 20  # dimension
 adj_mat <- matrix(0, nrow = n, ncol = n)
@@ -111,6 +120,7 @@ cost.mat <- distances(g, weights = edge_weights)
 write.table(cost.mat, file = "data/math/costmat_square_friction.csv", sep = ",")
 write.table(weights_vec, file = "data/math/square_weights.csv", row.names = FALSE, col.names = FALSE)
 
+
 ########## grid generation for cube ########## 
 size <- 7
 coords <- expand.grid(x = 1:size, y = 1:size, z = 1:size)
@@ -155,4 +165,54 @@ cost_naive <- calc_cost(edges_naive)
 cost_friction <- calc_cost(edges_friction)
 write.table(cost_naive, "data/math/costmat_cube_naive.csv", sep=",")   #naive cost matrix
 write.table(cost_friction, "data/math/costmat_cube_friction.csv", sep=",")   #friction cost matrix
+
+
+########## grid generation for annulus ########## 
+n_rows <- 10
+n_cols <- 10
+grid <- expand.grid(row = 1:n_rows,col = 1:n_cols)
+
+# remove 4 x 4 nodes in the middle
+grid <- subset(
+  grid,
+  !(row %in% 4:7 & col %in% 4:7)
+)
+n <- nrow(grid)   # 84
+grid$id <- 1:n
+
+# naive adjmat and costmat
+adjmat <- matrix(0, n, n)
+for(i in 1:n){
+  for(j in 1:n){
+    d <- abs(grid$row[i]-grid$row[j]) +
+      abs(grid$col[i]-grid$col[j])
+    if(d == 1)
+      adjmat[i,j] <- 1
+  }
+}
+write.table(adjmat, file = "data/math/adjmat_annulus.csv",sep = ",", row.names = FALSE, col.names = FALSE)
+g <- graph_from_adjacency_matrix(adjmat, mode = "undirected")
+cost.mat <- distances(g)
+write.table(cost.mat, file = "data/math/costmat_annulus_naive.csv", sep = ",")
+
+# friction weights and costmat
+get_weight <- function(r, c) {
+  if (r <= 5 & c <= 5) return(1)      # top left: 1
+  if (r <= 5 & c > 5)  return(2)      # top right: 2
+  if (r > 5  & c <= 5) return(3)      # bottom left: 3
+  if (r > 5  & c > 5)  return(4)      # bottom right: 4
+}
+weights_vec <- mapply(get_weight, grid$row, grid$col)
+write.table(weights_vec,"data/math/annulus_weights.csv",sep = ",",row.names = FALSE,col.names = FALSE)
+
+edges <- as_edgelist(g, names = FALSE)
+edge_weights <- sapply(
+  1:nrow(edges),
+  function(i){
+    target_node <- edges[i,2]
+    weights_vec[target_node]
+  }
+)
+cost.mat <- distances(g,weights = edge_weights)
+write.table(cost.mat,"data/math/costmat_annulus_friction.csv",sep = ",")
 

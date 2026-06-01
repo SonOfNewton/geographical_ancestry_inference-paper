@@ -22,7 +22,7 @@ pops_to_sample = sort(unique(data[,2])-1L)
 results_list <- list()
 
 for (i in 1:num_reps) {
-  ts_file <- sprintf("data/trees/empirical_tree_afro-eurasia-%s.trees", i)
+  ts_file <- sprintf("data/trees/empirical_tree_%s_%s_%s_%s.trees", world, source_pop, end_gen, i)
   # skip if missing some files
   if (!file.exists(ts_file)) {
     cat(sprintf("Rep %d file does not exist, skipped\n", i))
@@ -58,7 +58,7 @@ for (i in 1:num_reps) {
 
 # merge all replications
 all_flux <- bind_rows(results_list)
-write.csv(all_flux, sprintf("output/tables/all_replication_true_flux_%s.csv", world), row.names=FALSE)
+write.csv(all_flux, sprintf("output/tables/all_replication_true_flux_%s_%s_%s.csv", world, source_pop, end_gen), row.names=FALSE)
 
 # sample replications
 n_each <- 10  # select n_each replications for each corridor with the highest true flux
@@ -79,7 +79,7 @@ top_gibraltar <- all_flux %>%
 selected_reps <- bind_rows(top_sinai, top_mandeb, top_gibraltar) %>%
   distinct(rep, .keep_all = TRUE)
 selected_reps <- selected_reps %>% arrange(rep)   # sort
-selection_file <- sprintf("output/tables/selected_reps_%s.csv", world)
+selection_file <- sprintf("output/tables/selected_reps_%s_%s_%s.csv", world, source_pop, end_gen)
 write.csv(selected_reps$rep, selection_file, row.names = FALSE)
 cat(sprintf("sampled %d replications\n", nrow(selected_reps)))
 
@@ -91,7 +91,7 @@ smooth_order <- order(mds_1d[, 1])
 flux_sorted <- selected_reps[smooth_order, ]
 n_reps <- nrow(flux_sorted)
 
-output_file <- sprintf("output/figures/true_flux_sampled_replications_%s.pdf", world)
+output_file <- sprintf("output/figures/true_flux_sampled_replications_%s_%s_%s.pdf", world, source_pop, end_gen)
 pdf(file=output_file, width=10, height=6)
 par(mfrow=c(1, 1), mar=c(5.5, 4, 4, 2) + 0.1) 
 max_y <- max(c(flux_sorted$sinai, flux_sorted$mandeb, flux_sorted$gibraltar)) * 1.1

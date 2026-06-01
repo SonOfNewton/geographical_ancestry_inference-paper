@@ -3,7 +3,7 @@ WORLD = my_world
 map = c("friction", "naive")
 
 for (MAP in map){
-  x = read.csv(sprintf("data/flux/flux_strait_%s_%s.csv", WORLD, MAP))
+  x = read.csv(sprintf("data/flux/flux_strait_%s_%s_%s_%s.csv", WORLD, source_pop, end_gen, MAP))
   n = nrow(x)
   
   # true flux
@@ -13,7 +13,7 @@ for (MAP in map){
   
   for (i in 1:n) {
     rep_id = x$rep[i]
-    f_data = read.csv(sprintf("data/flux/flux_%s_%s_%s.csv", WORLD, MAP, rep_id), row.names=1)
+    f_data = read.csv(sprintf("data/flux/flux_%s_%s_%s_%s_%s.csv", WORLD, source_pop, end_gen, MAP, rep_id), row.names=1)
     true_mat = matrix(f_data$true_flux, nrow=177, ncol=177)
     true_sinai[i] = sum(true_mat[38, 69:70])
     true_mandeb[i] = true_mat[67, 68]
@@ -32,7 +32,7 @@ for (MAP in map){
   x <- x[smooth_order, ]
   
   # plot
-  output_file = sprintf("output/figures/compare_flux_%s_%s.png", WORLD, MAP)
+  output_file = sprintf("output/figures/compare_flux_%s_%s_%s_%s.png", WORLD, source_pop, end_gen, MAP)
   png(file=output_file, width=10, height=5, units="in", res=300, bg = "transparent")
   
   par(mfrow=c(1, 1), mar=c(5, 4, 4, 2) + 0.1)
@@ -70,8 +70,8 @@ for (MAP in map){
 
 
   ##### plot mean and std of estimation of both maps in one figure #####
-  x_friction <- read.csv(sprintf("data/flux/flux_strait_%s_friction.csv", WORLD))
-  x_naive <- read.csv(sprintf("data/flux/flux_strait_%s_naive.csv", WORLD))
+  x_friction <- read.csv(sprintf("data/flux/flux_strait_%s_%s_%s_friction.csv", WORLD, source_pop, end_gen))
+  x_naive <- read.csv(sprintf("data/flux/flux_strait_%s_%s_%s_naive.csv", WORLD, source_pop, end_gen))
   
   n <- nrow(x_friction)
   true_sinai <- numeric(n)
@@ -80,7 +80,7 @@ for (MAP in map){
   
   for (i in 1:n) {
     rep_id <- x_friction$rep[i]
-    f_data <- read.csv(sprintf("data/flux/flux_%s_%s_%s.csv",WORLD, MAP, rep_id), row.names=1)   
+    f_data <- read.csv(sprintf("data/flux/flux_%s_%s_%s_%s_%s.csv",WORLD, source_pop, end_gen, MAP, rep_id), row.names=1)   
     # Note: theoretically, true_flux in flux_WORLD_friction_1.csv should be identical to flux_WORLD_naive_1.
     # However, due to randomness in selection of multiple optimal routes, they vary slightly from each other.
     # Thus we perform both comparisons, using one as result and the other as robustness test.
@@ -113,7 +113,7 @@ for (MAP in map){
   summary_stats$y <- rep(3:1, each = 2) + rep(c(0.12, -0.12), 3)
   
   # plot
-  output_file <- sprintf("output/figures/compare_flux_%s_summary_%s_base.png", WORLD, MAP)
+  output_file <- sprintf("output/figures/compare_flux_%s_%s_%s_summary_%s_base.png", WORLD, source_pop, end_gen, MAP)
   png(file = output_file, width = 9.5, height = 9, units = "in", res = 300, bg = "transparent")
   
   par(mar = c(5, 8, 3, 3), las = 1, cex.axis = 1.35, cex.lab = 1.45)
@@ -178,7 +178,7 @@ for (MAP in map){
       mean((x_friction$flux_gibraltar - true_gibraltar)^2)
     )
   )
-  output_file <- sprintf("output/tables/flux_mse_%s_%s_base.csv",WORLD, MAP)
+  output_file <- sprintf("output/tables/flux_mse_%s_%s_%s_%s_base.csv",WORLD, source_pop, end_gen, MAP)
   write.csv(mse_table, file = output_file, row.names = FALSE)
   message(sprintf("saved MSE table to: %s", output_file))
 }

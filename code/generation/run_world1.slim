@@ -1,8 +1,12 @@
 initialize() {
     initializeSLiMModelType("nonWF");
     initializeTreeSeq();
+    if (!exists("SOURCE_POP"))
+        defineConstant("SOURCE_POP", 58);   //start from 1, same as landgrid visualization plot
+    if (!exists("END_GEN"))
+        defineConstant("END_GEN", 7000);
     defineConstant("ADJMATFILE", "data/geo/landgrid_adjmat_naive_afro-eurasia_norownames.csv");
-    defineConstant("TREEFILE", "data/trees/empirical_tree_afro-eurasia-"+paste(REP)+".trees");
+    defineConstant("TREEFILE", "data/trees/empirical_tree_afro-eurasia_"+paste(SOURCE_POP)+"_"+paste(END_GEN)+"_"+paste(REP)+".trees");
     defineConstant("KFILE", "data/pop/landgrid_capacity_afro-eurasia_5000BC_sqrt.csv");
     defineConstant("N", 177); // number of subpopulations
     defineConstant("m", 0.001); // migration rate
@@ -52,8 +56,8 @@ reproduction(NULL, "F") {
     }
     defineConstant("SUBPOPN", neighbors);
     for (i in 0:(N-1)) {
-        subpop = sim.addSubpop(i, (i == 57) ? 20 else 0);
-        if (i == 57)
+        subpop = sim.addSubpop(i, (i == SOURCE_POP-1) ? 20 else 0);
+        if (i == SOURCE_POP-1)
             subpop.individuals.age = c(0,2,5,7,10,12,15,17,20,22,25,27,30,32,35,37,40,42,45,47);
     }
     // optional: population track through time
@@ -123,7 +127,10 @@ late() {
         stop("Global extinction in cycle " + sim.cycle + ".");
 }
 
-7000 late() {
-    sim.treeSeqOutput(TREEFILE);
-    sim.simulationFinished();
+END_GEN late() {
+    //if (sim.cycle == END_GEN)
+    {
+        sim.treeSeqOutput(TREEFILE);
+        sim.simulationFinished();
+    }
 }

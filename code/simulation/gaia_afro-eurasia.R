@@ -10,7 +10,9 @@ source(here("code","functions.R"),verbose=FALSE)
 args = commandArgs(trailingOnly=TRUE)
 REP = args[1]
 WORLD = args[2]  # afro-eurasia
-MAP = args[3]    # friction, naive
+SOURCE_POP = args[3]
+END_GEN = args[4]
+MAP = args[5]    # friction, naive
 
 # grid cells to sample
 data = read.csv(sprintf("data/genetics/sample_states_%s.csv", WORLD))
@@ -25,7 +27,7 @@ neighbor.mat = data.matrix(read.csv(sprintf("data/geo/landgrid_adjmat_%s_%s.csv"
 dimnames(cost.mat) = NULL
 dimnames(neighbor.mat) = NULL
 
-ts = treeseq_load(sprintf("data/trees/empirical_tree_%s-%s.trees", WORLD, REP))
+ts = treeseq_load(sprintf("data/trees/empirical_tree_%s_%s_%s_%s.trees", WORLD, SOURCE_POP, END_GEN, REP))
 nodes = treeseq_nodes(ts)
 sample_nodes = nodes[nodes$is_sample==1, ]
 sample_nodes_to_sample = sample_nodes[sample_nodes$population_id %in% pops_to_sample,]
@@ -43,7 +45,7 @@ estimated_node_states = treeseq_discrete_mpr_minimize(mpr)
 
 write.csv(data.frame(node_time=nodes$time, node_state=nodes$population_id+1L, 
     estimated_node_state=estimated_node_states), 
-    file=sprintf("data/mpr/mpr_%s_%s_%s.csv", WORLD, MAP, REP), row.names=FALSE)
+    file=sprintf("data/mpr/mpr_%s_%s_%s_%s_%s.csv", WORLD, SOURCE_POP, END_GEN, MAP, REP), row.names=FALSE)
 
 sample_sets = rep(1L, treeseq_num_samples(ts2))
 state_sets = 1:nrow(cost.mat)
@@ -72,7 +74,7 @@ f = data.frame(true_flux=c(flux0), estimated_flux=c(flux))
 #   estimated_flux = net_est_mat[upper_idx]
 # )
 
-write.csv(f, file=sprintf("data/flux/flux_%s_%s_%s.csv", WORLD, MAP, REP))
+write.csv(f, file=sprintf("data/flux/flux_%s_%s_%s_%s_%s.csv", WORLD, SOURCE_POP, END_GEN, MAP, REP))
 
 if (WORLD=="afro-eurasia"){
   ooa_flux = data.frame(
@@ -81,7 +83,7 @@ if (WORLD=="afro-eurasia"){
     flux_mandeb=flux[67,68,1,1],
     flux_gibraltar=flux[155,7,1,1])
   
-  out_file = sprintf("data/flux/flux_strait_%s_%s_%s.csv", WORLD, MAP, REP)
+  out_file = sprintf("data/flux/flux_strait_%s_%s_%s_%s_%s.csv", WORLD, SOURCE_POP, END_GEN, MAP, REP)
   write.csv(ooa_flux, file=out_file, row.names=FALSE)
 }
 

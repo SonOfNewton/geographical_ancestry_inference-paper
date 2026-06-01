@@ -5,7 +5,7 @@ MODEL=$2
 PARALLEL=$3
 
 if [ -z "$TOPOLOGY" ] || [ -z "$MODEL" ]; then
-    echo "Usage: bash slim_math.sh [line|square|cube|annulus] [MODEL]"
+    echo "Usage: bash slim_math.sh [line|square|cube|annulus|annulus2|annulus3] [MODEL]"
     exit 1
 fi
 if [ -z "$PARALLEL" ]; then

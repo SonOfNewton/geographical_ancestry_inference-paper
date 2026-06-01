@@ -1,14 +1,14 @@
 ##### parameters #####
 WORLD = my_world
-TIMEDEPTH = 7000
+
 
 data = read.csv(sprintf("data/genetics/sample_states_%s.csv", WORLD))
 pops_to_sample = sort(unique(data[,2])-1L)
 landgrid = st_read("data/geo/landgrid_afro-eurasia.gpkg", quiet=TRUE)
 
 # extract estimated location of oldest ancestors for all sampled replications
-y_friction <- get_y(world=WORLD, map="friction", timedepth=TIMEDEPTH)
-y_naive <- get_y(world=WORLD, map="naive", timedepth=TIMEDEPTH)
+y_friction <- get_y(world=WORLD, source_pop, end_gen, map="friction")
+y_naive <- get_y(world=WORLD, source_pop, end_gen, map="naive")
 
 coords <- st_coordinates(st_centroid(landgrid$geom))
 
@@ -17,7 +17,7 @@ count_friction <- tabulate(y_friction[,2], nrow(coords))
 count_naive <- tabulate(y_naive[,2], nrow(coords))
 
 # plot
-output_file <- sprintf("output/figures/compare_ancestor_estimates_%s.pdf", WORLD)
+output_file <- sprintf("output/figures/compare_ancestor_estimates_%s_%s_%s.pdf", WORLD, source_pop, end_gen)
 pdf(output_file, width = 7, height = 6)
 
 par(mar=c(1,1,2,1))
@@ -44,7 +44,7 @@ points(coords_right,
        bg = "#fc8d62",
        col = NA)
 
-origin_idx <- 58
+origin_idx <- source_pop
 plot(st_geometry(landgrid)[origin_idx],
      col = rgb(1,0,0,0.2),
      border = "red",
@@ -65,6 +65,6 @@ legend("topright",
 dev.off()
 message(sprintf("saved figure to: %s", output_file))
 
-cat("naive:", count_naive[58], " out of ", sum(count_naive), " on target.\n")
-cat("friction:", count_friction[58], " out of ", sum(count_friction), " on target.\n")
+cat("naive:", count_naive[source_pop], " out of ", sum(count_naive), " on target.\n")
+cat("friction:", count_friction[source_pop], " out of ", sum(count_friction), " on target.\n")
 

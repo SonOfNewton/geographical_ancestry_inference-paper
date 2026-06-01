@@ -1,5 +1,5 @@
 # settings
-all_mode = c("line", "square", "cube", "annulus")
+all_mode = c("line", "square", "cube", "annulus", "annulus2", "annulus3")
 real_case = "friction"
 all_model = c("friction", "naive")
 

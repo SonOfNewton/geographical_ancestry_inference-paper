@@ -45,6 +45,22 @@ initialize() {
         defineConstant("INIT_DEME", 23);     
         defineConstant("m", 0.005);    // Base migration rate        
     }
+    else if (TOPOLOGY == "annulus2") {
+        defineConstant("ADJMATFILE", "data/math/adjmat_annulus2.csv");
+        defineConstant("WEIGHTFILE", "data/math/annulus2_weights.csv");
+        defineConstant("N", 96);
+        defineConstant("MAX_NEIGHBORS", 4);
+        defineConstant("INIT_DEME", 23);     
+        defineConstant("m", 0.005);    // Base migration rate        
+    }
+    else if (TOPOLOGY == "annulus3") {
+        defineConstant("ADJMATFILE", "data/math/adjmat_annulus3.csv");
+        defineConstant("WEIGHTFILE", "data/math/annulus3_weights.csv");
+        defineConstant("N", 64);
+        defineConstant("MAX_NEIGHBORS", 4);
+        defineConstant("INIT_DEME", 23);     
+        defineConstant("m", 0.005);    // Base migration rate        
+    }
     else {
         stop("Unknown TOPOLOGY setting.");
     }

@@ -216,3 +216,102 @@ edge_weights <- sapply(
 cost.mat <- distances(g,weights = edge_weights)
 write.table(cost.mat,"data/math/costmat_annulus_friction.csv",sep = ",")
 
+
+########## grid generation for annulus2 ########## 
+n_rows <- 10
+n_cols <- 10
+grid <- expand.grid(row = 1:n_rows,col = 1:n_cols)
+
+# remove 2 x 2 nodes in the middle
+grid <- subset(
+  grid,
+  !(row %in% 5:6 & col %in% 5:6)
+)
+n <- nrow(grid)   # 96
+grid$id <- 1:n
+
+# naive adjmat and costmat
+adjmat <- matrix(0, n, n)
+for(i in 1:n){
+  for(j in 1:n){
+    d <- abs(grid$row[i]-grid$row[j]) +
+      abs(grid$col[i]-grid$col[j])
+    if(d == 1)
+      adjmat[i,j] <- 1
+  }
+}
+write.table(adjmat, file = "data/math/adjmat_annulus2.csv",sep = ",", row.names = FALSE, col.names = FALSE)
+g <- graph_from_adjacency_matrix(adjmat, mode = "undirected")
+cost.mat <- distances(g)
+write.table(cost.mat, file = "data/math/costmat_annulus2_naive.csv", sep = ",")
+
+# friction weights and costmat
+get_weight <- function(r, c) {
+  if (r <= 5 & c <= 5) return(1)      # top left: 1
+  if (r <= 5 & c > 5)  return(2)      # top right: 2
+  if (r > 5  & c <= 5) return(3)      # bottom left: 3
+  if (r > 5  & c > 5)  return(4)      # bottom right: 4
+}
+weights_vec <- mapply(get_weight, grid$row, grid$col)
+write.table(weights_vec,"data/math/annulus2_weights.csv",sep = ",",row.names = FALSE,col.names = FALSE)
+
+edges <- as_edgelist(g, names = FALSE)
+edge_weights <- sapply(
+  1:nrow(edges),
+  function(i){
+    target_node <- edges[i,2]
+    weights_vec[target_node]
+  }
+)
+cost.mat <- distances(g,weights = edge_weights)
+write.table(cost.mat,"data/math/costmat_annulus2_friction.csv",sep = ",")
+
+
+########## grid generation for annulus3 ########## 
+n_rows <- 10
+n_cols <- 10
+grid <- expand.grid(row = 1:n_rows,col = 1:n_cols)
+
+# remove 6 x 6 nodes in the middle
+grid <- subset(
+  grid,
+  !(row %in% 3:8 & col %in% 3:8)
+)
+n <- nrow(grid)   # 64
+grid$id <- 1:n
+
+# naive adjmat and costmat
+adjmat <- matrix(0, n, n)
+for(i in 1:n){
+  for(j in 1:n){
+    d <- abs(grid$row[i]-grid$row[j]) +
+      abs(grid$col[i]-grid$col[j])
+    if(d == 1)
+      adjmat[i,j] <- 1
+  }
+}
+write.table(adjmat, file = "data/math/adjmat_annulus3.csv",sep = ",", row.names = FALSE, col.names = FALSE)
+g <- graph_from_adjacency_matrix(adjmat, mode = "undirected")
+cost.mat <- distances(g)
+write.table(cost.mat, file = "data/math/costmat_annulus3_naive.csv", sep = ",")
+
+# friction weights and costmat
+get_weight <- function(r, c) {
+  if (r <= 5 & c <= 5) return(1)      # top left: 1
+  if (r <= 5 & c > 5)  return(2)      # top right: 2
+  if (r > 5  & c <= 5) return(3)      # bottom left: 3
+  if (r > 5  & c > 5)  return(4)      # bottom right: 4
+}
+weights_vec <- mapply(get_weight, grid$row, grid$col)
+write.table(weights_vec,"data/math/annulus3_weights.csv",sep = ",",row.names = FALSE,col.names = FALSE)
+
+edges <- as_edgelist(g, names = FALSE)
+edge_weights <- sapply(
+  1:nrow(edges),
+  function(i){
+    target_node <- edges[i,2]
+    weights_vec[target_node]
+  }
+)
+cost.mat <- distances(g,weights = edge_weights)
+write.table(cost.mat,"data/math/costmat_annulus3_friction.csv",sep = ",")

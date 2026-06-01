@@ -66,6 +66,8 @@ system2(command = "bash",args = c(here("code", "generation", "slim_math.sh"), "l
 system2(command = "bash",args = c(here("code", "generation", "slim_math.sh"), "square", "friction", usecores))
 system2(command = "bash",args = c(here("code", "generation", "slim_math.sh"), "cube", "friction", usecores))
 system2(command = "bash",args = c(here("code", "generation", "slim_math.sh"), "annulus", "friction", usecores))
+system2(command = "bash",args = c(here("code", "generation", "slim_math.sh"), "annulus2", "friction", usecores))
+system2(command = "bash",args = c(here("code", "generation", "slim_math.sh"), "annulus3", "friction", usecores))
 message("\n successfully generated tree sequence data for figure 2\n\n")
 
 source(here("code", "visualization", "compare_friction_with_naive.R"),verbose=FALSE)
@@ -76,12 +78,17 @@ my_world = "afro-eurasia"
 source(here("code", "generation", "data_preparation.R"),verbose=FALSE)
 message("\n data preparation complete\n\n")
 
-system2(command = "bash",args = c(here("code", "generation", "slim_empirical.sh"), usecores))
+# change these parameters for robustness test
+source_pop <- 85   # original grid cell (with the first individuals), starting from 1
+# Some choices: 58--Tanzania, 116--China, 85--Central Asia. For main results we use 58.
+end_gen <- 7000   # years of simulation
+
+system2(command = "bash",args = c(here("code", "generation", "slim_empirical.sh"), usecores, source_pop, end_gen))
 message("\n successfully generated tree sequence data for figure 3\n\n")
 
 source(here("code", "simulation", "select_worlds.R"),verbose=FALSE)
-system2(command = "bash",args = c(here("code", "simulation", "run_gaia_afro-eurasia.sh"), my_world, "friction", usecores))
-system2(command = "bash",args = c(here("code", "simulation", "run_gaia_afro-eurasia.sh"), my_world, "naive", usecores))
+system2(command = "bash",args = c(here("code", "simulation", "run_gaia_afro-eurasia.sh"), my_world, source_pop, end_gen, "friction", usecores))
+system2(command = "bash",args = c(here("code", "simulation", "run_gaia_afro-eurasia.sh"), my_world, source_pop, end_gen, "naive", usecores))
 message("\n simulation complete\n\n")
 
 source(here("code", "visualization", "compare_flux.R"),verbose=FALSE)

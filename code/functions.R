@@ -13,6 +13,10 @@ process_one_file <- function(i, mode, model, real_case) {
     MAXDEME = 343
   }else if (mode == "annulus"){
     MAXDEME = 84
+  }else if (mode == "annulus2"){
+    MAXDEME = 96
+  }else if (mode == "annulus3"){
+    MAXDEME = 64
   }
   
   ts <- treeseq_load(ts_file)
@@ -438,15 +442,15 @@ data_subsample = function(D)
 
 
 # extract estimated location of oldest ancestors for all sampled replications
-get_y <- function(world="afro-eurasia", map, timedepth){
+get_y <- function(world="afro-eurasia", source_pop, end_gen, map){
   y = c()
-  selection_file <- sprintf("output/tables/selected_reps_%s.csv", world)
+  selection_file <- sprintf("output/tables/selected_reps_%s_%s_%s.csv", world, source_pop, end_gen)
   selected_reps_df <- read.csv(selection_file)
   selected_rep_ids <- selected_reps_df$x
   for (rep in selected_rep_ids) {
-    x = read.csv(sprintf("data/mpr/mpr_%s_%s_%s.csv", 
-                         world, map, rep))
-    idx = which(x$node_time == timedepth-1)
+    x = read.csv(sprintf("data/mpr/mpr_%s_%s_%s_%s_%s.csv", 
+                         world, source_pop, end_gen, map, rep))
+    idx = which(x$node_time == end_gen-1)
     y = rbind(y, x[idx,2:3])
   }
   return(y)

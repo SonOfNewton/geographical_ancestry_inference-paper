@@ -1,5 +1,5 @@
 # geographical_ancestry_inference-paper project master script
-# Copyright (c) 2026 Zhejiang University 
+
 # This master file sources all other R scripts shell and script in the project.
 # It is intended to be run from the root directory of the project and allow for replication of all analyses and figures.
 

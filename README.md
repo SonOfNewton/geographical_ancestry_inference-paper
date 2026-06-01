@@ -54,7 +54,8 @@ geographical_ancestry_inference-paper/
 - in data/pop: popc_5000BC.asc (and other files including 10000BC, 0AD, 1500AD, 2000AD)
 - in data/genetics: hgdp_tgp_sgdp_high_cov_ancients_chr18_p.dated.trees
 
-4. Run:
+4. Install SLiM software
+5. Run:
 
 ```r
 source("code/master.R")

@@ -315,3 +315,20 @@ edge_weights <- sapply(
 )
 cost.mat <- distances(g,weights = edge_weights)
 write.table(cost.mat,"data/math/costmat_annulus3_friction.csv",sep = ",")
+
+
+
+########## compute accessibility of the networks ########## 
+adjmat <- as.matrix(read.csv("data/math/adjmat_line.csv",header = FALSE))
+res <- compute_accessibility(adjmat, n_samples = 100, distance_multiplier = 1.2, seed = 123)
+adjmat <- as.matrix(read.csv("data/math/adjmat_annulus3.csv",header = FALSE))
+res <- compute_accessibility(adjmat, n_samples = 100, distance_multiplier = 1.2, seed = 123)
+adjmat <- as.matrix(read.csv("data/math/adjmat_annulus.csv",header = FALSE))
+res <- compute_accessibility(adjmat, n_samples = 100, distance_multiplier = 1.2, seed = 123)
+adjmat <- as.matrix(read.csv("data/math/adjmat_annulus2.csv",header = FALSE))
+res <- compute_accessibility(adjmat, n_samples = 100, distance_multiplier = 1.2, seed = 123)
+adjmat <- as.matrix(read.csv("data/math/adjmat_square.csv",header = FALSE))
+res <- compute_accessibility(adjmat, n_samples = 100, distance_multiplier = 1.2, seed = 123)
+adjmat <- as.matrix(read.csv("data/math/adjmat_cube.csv",header = FALSE))
+res <- compute_accessibility(adjmat, n_samples = 100, distance_multiplier = 1.2, seed = 123)
+

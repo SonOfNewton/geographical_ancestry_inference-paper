@@ -41,7 +41,8 @@ message("\n all functions loaded\n")
 source(here("code", "visualization", "tree_demo.R"),verbose=FALSE)
 message("\n successfully generated abstract illustration plot\n\n")
 
-source(here("code", "generation", "create_landgrid_math.R"),verbose=FALSE)
+# only need to run for one time
+source(here("code", "generation", "create_landgrid_math.R"),verbose=FALSE)   # compute_accessibility() is time consuming. Skipping this does not affect pipeline.
 message("\n network data prepared for figure 1 and 2\n\n")
 
 system2(command = "bash",args = c(here("code", "generation", "slim_math.sh"), "line", "naive", usecores))
@@ -79,9 +80,10 @@ source(here("code", "generation", "data_preparation.R"),verbose=FALSE)
 message("\n data preparation complete\n\n")
 
 # change these parameters for robustness test
-source_pop <- 85   # original grid cell (with the first individuals), starting from 1
+source_pop <- 58   # original grid cell (with the first individuals), starting from 1
 # Some choices: 58--Tanzania, 116--China, 85--Central Asia. For main results we use 58.
 end_gen <- 7000   # years of simulation
+# Some choices: 7000 (used for main results), 5000, 10000
 
 system2(command = "bash",args = c(here("code", "generation", "slim_empirical.sh"), usecores, source_pop, end_gen))
 message("\n successfully generated tree sequence data for figure 3\n\n")
@@ -94,6 +96,8 @@ message("\n simulation complete\n\n")
 source(here("code", "visualization", "compare_flux.R"),verbose=FALSE)
 source(here("code", "visualization", "compare_ancestor_estimates.R"),verbose=FALSE)
 message("\n visualization complete\n\n")
+
+# source(here("code", "simulation", "check_time_complexity.R"),verbose=FALSE)
 
 # ##################### for figure 4 ##############################################
 my_world = "asia-americas"

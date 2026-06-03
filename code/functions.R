@@ -638,3 +638,145 @@ plot_spatial_distribution <- function(D, title = "", landgrid_path = "data/geo/l
   
   return(p)
 }
+
+
+# helper function to compute accessibility of a network
+count_simple_paths_pruned <- function(g,a,b,distmat,distance_multiplier = 1.2) {
+  d <- distmat[a, b]
+  if (is.infinite(d))
+    return(NA_integer_)
+  max_len <- floor(distance_multiplier * d)
+  n <- vcount(g)
+  visited <- rep(FALSE, n)
+  visited[a] <- TRUE
+  count <- 0L
+  
+  dfs <- function(cur, depth) {
+    if (depth > max_len)
+      return()
+    
+    if (depth + distmat[cur, b] > max_len)
+      return()
+    
+    if (cur == b) {
+      count <<- count + 1L
+      return()
+    }
+    
+    neigh <- as.integer(neighbors(g, cur))
+    
+    for (v in neigh) {
+      if (!visited[v]) {
+        visited[v] <<- TRUE
+        dfs(cur = v,depth = depth + 1L)
+        visited[v] <<- FALSE
+      }
+    }
+  }
+  
+  dfs(a, 0L)
+  count
+}
+
+
+# main function to compute accessibility of a network
+compute_accessibility <- function(adjmat,n_samples = 100,distance_multiplier = 2,n_cores = max(1, detectCores() - 1), seed = 123) {
+  set.seed(seed)
+  
+  cat("\n")
+  cat("=====================================\n")
+  cat("Building graph...\n")
+  
+  g <- graph_from_adjacency_matrix(adjmat,mode = "undirected")
+  n <- vcount(g)
+  
+  cat("Nodes:", n, "\n")
+  
+  cat("Computing shortest-path matrix...\n")
+  
+  distmat <- distances(g)
+  
+  cat("Done.\n")
+  cat("Distance multiplier =", distance_multiplier, "\n")
+  
+  # sample node pairs
+  pairs <- t(combn(n, 2))
+  idx <- sample(seq_len(nrow(pairs)), min(n_samples, nrow(pairs)))
+  sampled_pairs <- pairs[idx, , drop = FALSE]
+  cat("Sampled",nrow(sampled_pairs),"node pairs.\n")
+  
+  pair_chunks <- split(
+    seq_len(nrow(sampled_pairs)),
+    cut(
+      seq_len(nrow(sampled_pairs)),
+      breaks = n_cores,
+      labels = FALSE
+    )
+  )
+  cat("Running on", n_cores, "cores.\n")
+  
+  worker <- function(chunk_id, rows) {
+    out <- numeric(length(rows))
+    cat(sprintf("[Worker %d] started (%d pairs)\n",chunk_id,length(rows)))
+    flush.console()
+    
+    for (k in seq_along(rows)) {
+      i <- rows[k]
+      a <- sampled_pairs[i, 1]
+      b <- sampled_pairs[i, 2]
+      out[k] <- count_simple_paths_pruned(g = g,a = a,b = b,distmat = distmat,distance_multiplier = distance_multiplier)
+      
+      if (k %% 5 == 0) {
+        cat(sprintf("[Worker %d] %d / %d finished\n",chunk_id,k,length(rows)))
+        flush.console()
+      }
+    }
+    
+    cat(sprintf("[Worker %d] completed\n",chunk_id))
+    flush.console()
+    out
+  }
+  
+  # parallel
+  start_time <- Sys.time()
+  counts <- mclapply(
+    seq_along(pair_chunks),
+    function(j)
+      worker(
+        chunk_id = j,
+        rows = pair_chunks[[j]]
+      ),
+    mc.cores = n_cores
+  )
+  elapsed <- Sys.time() - start_time
+  counts <- unlist(counts)
+  
+  # summary
+  res <- list(
+    mean = mean(counts, na.rm = TRUE),
+    median = median(counts, na.rm = TRUE),
+    sd = sd(counts, na.rm = TRUE),
+    min = min(counts, na.rm = TRUE),
+    max = max(counts, na.rm = TRUE),
+    q25 = quantile(counts, 0.25, na.rm = TRUE),
+    q75 = quantile(counts, 0.75, na.rm = TRUE),
+    elapsed_seconds = as.numeric(elapsed, units = "secs"),
+    counts = counts,
+    sampled_pairs = sampled_pairs
+  )
+  
+  cat("\n")
+  cat("=====================================\n")
+  cat("Finished.\n")
+  cat("Elapsed:", round(res$elapsed_seconds, 2), "seconds\n")
+  cat("Mean   :", round(res$mean, 3), "\n")
+  cat("Median :", round(res$median, 3), "\n")
+  cat("SD     :", round(res$sd, 3), "\n")
+  cat("Min    :", res$min, "\n")
+  cat("Q25    :", round(res$q25, 3), "\n")
+  cat("Q75    :", round(res$q75, 3), "\n")
+  cat("Max    :", res$max, "\n")
+  cat("=====================================\n")
+  
+  return(res)
+}

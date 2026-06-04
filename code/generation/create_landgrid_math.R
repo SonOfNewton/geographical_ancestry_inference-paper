@@ -1,4 +1,4 @@
-# scenarios: line, square, cube, annulus
+# scenarios: line, square, cube, annulus, annulus2, annulus3
 # each scenario output 4 files:
 # adjmat_scenario.csv (homogeneous, for SLiM)
 # costmat_scenario_naive.csv (homogeneous, for GAIA)
@@ -318,17 +318,37 @@ write.table(cost.mat,"data/math/costmat_annulus3_friction.csv",sep = ",")
 
 
 
-########## compute accessibility of the networks ########## 
-adjmat <- as.matrix(read.csv("data/math/adjmat_line.csv",header = FALSE))
-res <- compute_accessibility(adjmat, n_samples = 100, distance_multiplier = 1.2, seed = 123)
-adjmat <- as.matrix(read.csv("data/math/adjmat_annulus3.csv",header = FALSE))
-res <- compute_accessibility(adjmat, n_samples = 100, distance_multiplier = 1.2, seed = 123)
-adjmat <- as.matrix(read.csv("data/math/adjmat_annulus.csv",header = FALSE))
-res <- compute_accessibility(adjmat, n_samples = 100, distance_multiplier = 1.2, seed = 123)
-adjmat <- as.matrix(read.csv("data/math/adjmat_annulus2.csv",header = FALSE))
-res <- compute_accessibility(adjmat, n_samples = 100, distance_multiplier = 1.2, seed = 123)
-adjmat <- as.matrix(read.csv("data/math/adjmat_square.csv",header = FALSE))
-res <- compute_accessibility(adjmat, n_samples = 100, distance_multiplier = 1.2, seed = 123)
-adjmat <- as.matrix(read.csv("data/math/adjmat_cube.csv",header = FALSE))
-res <- compute_accessibility(adjmat, n_samples = 100, distance_multiplier = 1.2, seed = 123)
+########## compute communicability of the networks ##########
+### original communicability metric
+# average over all pairs of nodes
+compute_communicability("line",NULL)
+compute_communicability("annulus3",NULL)
+compute_communicability("annulus",NULL)
+compute_communicability("annulus2",NULL)
+compute_communicability("square",NULL)
+compute_communicability("cube",NULL)
 
+# fix the node of the founding deme and average over the other
+compute_communicability("line",2)
+compute_communicability("annulus3",23)
+compute_communicability("annulus",23)
+compute_communicability("annulus2",23)
+compute_communicability("square",23)  # "square" here is smaller than "annulus2", indicating it does not fully capture the intended property
+compute_communicability("cube",58)
+
+### regularized communicability metric
+# average over all pairs of nodes
+regularized_communicability("line",NULL)
+regularized_communicability("annulus3",NULL)
+regularized_communicability("annulus",NULL)
+regularized_communicability("annulus2",NULL)
+regularized_communicability("square",NULL)
+regularized_communicability("cube",NULL)
+
+# fix the node of the founding deme and average over the other
+regularized_communicability("line",2)
+regularized_communicability("annulus3",23)
+regularized_communicability("annulus",23)
+regularized_communicability("annulus2",23)
+regularized_communicability("square",23)
+regularized_communicability("cube",58)

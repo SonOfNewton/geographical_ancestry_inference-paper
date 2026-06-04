@@ -5,7 +5,7 @@
 
 # Before running this script, please set the working directory (setwd()) to the root directory of the project 
 # Ensure all dependencies are installed
-pkgs <- c("gaia","igraph","ggplot2","tidyverse","ggpubr","parallel","sf","terra","viridis","dplyr","rnaturalearth","spdep","jsonlite","here") 
+pkgs <- c("gaia","igraph","ggplot2","tidyverse","ggpubr","parallel","sf","terra","viridis","dplyr","rnaturalearth","spdep","jsonlite","expm","here") 
 
 # install if not installed (nothing to do with updates)
 new.packages <- pkgs[!(pkgs %in% installed.packages()[,"Package"])]
@@ -42,7 +42,7 @@ source(here("code", "visualization", "tree_demo.R"),verbose=FALSE)
 message("\n successfully generated abstract illustration plot\n\n")
 
 # only need to run for one time
-source(here("code", "generation", "create_landgrid_math.R"),verbose=FALSE)   # compute_accessibility() is time consuming. Skipping this does not affect pipeline.
+source(here("code", "generation", "create_landgrid_math.R"),verbose=FALSE)   
 message("\n network data prepared for figure 1 and 2\n\n")
 
 system2(command = "bash",args = c(here("code", "generation", "slim_math.sh"), "line", "naive", usecores))

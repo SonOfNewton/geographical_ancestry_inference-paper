@@ -249,14 +249,14 @@ for(channel in channels){
   points(1:n,true_flux,pch=16,col="black")
   
   # friction estimate
-  lines(1:n,friction[[paste0("flux_",channel)]],col="#1b9e77",lwd=2,lty=2)
-  points(1:n,friction[[paste0("flux_",channel)]],pch=1,col="#1b9e77")
+  lines(1:n,friction[[paste0("flux_",channel)]],col="#fc8d62",lwd=2,lty=2)
+  points(1:n,friction[[paste0("flux_",channel)]],pch=16,col="#fc8d62")
   
   # naive estimate
-  lines(1:n,naive[[paste0("flux_",channel)]],col="#d95f02",lwd=2,lty=3) 
-  points(1:n,naive[[paste0("flux_",channel)]],pch=2,col="#d95f02")
+  lines(1:n,naive[[paste0("flux_",channel)]],col="#66c2a5",lwd=2,lty=2) 
+  points(1:n,naive[[paste0("flux_",channel)]],pch=16,col="#66c2a5")
   
-  legend("topright",legend=c("true","friction","naive"),col=c("black","#1b9e77","#d95f02"),lty=c(1,2,3),pch=c(16,1,2),pt.cex=1.5,cex=1.4,lwd=2,bty="n")
+  legend("topright",legend=c("true","friction","naive"),col=c("black","#fc8d62","#66c2a5"),lty=c(1,2,2),pch=c(16,16,16),pt.cex=1.5,cex=1.4,lwd=2,bty="n")
   
   dev.off()
   message(sprintf("saved figure to: %s", output_file))

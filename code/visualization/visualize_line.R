@@ -24,7 +24,7 @@ indivs <- unlist(unname(tapply(
 )))
 
 # extract node id of the sampled individuals and simplify the tree sequence
-to_keep <- sample_nodes_to_sample$node_id[sample_nodes_to_sample$individual_id %in% indivs]
+to_keep <- sample_nodes$node_id[sample_nodes$individual_id %in% indivs]
 ts2 <- treeseq_simplify(ts, to_keep, filter.populations = FALSE)
 
 nodes2 <- treeseq_nodes(ts2)
@@ -108,5 +108,5 @@ legend("topright", title = "Deme", legend = legend_demes,
        fill = pal[legend_demes], bty = "n", cex = 1.2, inset = 0.02)
 dev.off()
 
-
+message(paste0('Line tree structure figure saved in:\n',"output/figures/line_tree_structure.png",'\n\n'))
 

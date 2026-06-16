@@ -108,4 +108,6 @@ print(p)
 
 }
 
+message(paste0('Error comparison figure (different suffix) saved in:\n',"output/figures/error_comparison_suffix.png",'\n\n'))
+
 

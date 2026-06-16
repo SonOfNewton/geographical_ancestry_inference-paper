@@ -56,7 +56,8 @@ message("\n successfully generated abstract illustration plot\n\n")
 source(here("code", "generation", "create_landgrid_math.R"),verbose=FALSE)   
 message("\n network data prepared for figure 1 and 2\n\n")
 
-system2(command = "bash",args = c(here("code", "generation", "slim_math.sh"), "line", "naive", usecores))
+slim_path <- Sys.which("slim")
+system2(command = "bash",args = c(here("code", "generation", "slim_math.sh"), "line", "naive", usecores, slim_path))
 message("\n successfully generated tree data for figure 1\n\n")
 
 source(here("code", "visualization", "visualize_line.R"),verbose=FALSE)

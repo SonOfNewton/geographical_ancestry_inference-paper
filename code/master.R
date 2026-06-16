@@ -75,12 +75,12 @@ message("\n successfully generated actual and estimated tree sequence plot\n\n")
 # (a redundant space at the end of the line can fail the whole pipeline)
 
 # ##################### for figure 2 ##############################################
-system2(command = "bash",args = c(here("code", "generation", "slim_math.sh"), "line", "friction", usecores))
-system2(command = "bash",args = c(here("code", "generation", "slim_math.sh"), "square", "friction", usecores))
-system2(command = "bash",args = c(here("code", "generation", "slim_math.sh"), "cube", "friction", usecores))
-system2(command = "bash",args = c(here("code", "generation", "slim_math.sh"), "annulus", "friction", usecores))
-system2(command = "bash",args = c(here("code", "generation", "slim_math.sh"), "annulus2", "friction", usecores))
-system2(command = "bash",args = c(here("code", "generation", "slim_math.sh"), "annulus3", "friction", usecores))
+system2(command = "bash",args = c(here("code", "generation", "slim_math.sh"), "line", "friction", usecores, slim_path))
+system2(command = "bash",args = c(here("code", "generation", "slim_math.sh"), "square", "friction", usecores, slim_path))
+system2(command = "bash",args = c(here("code", "generation", "slim_math.sh"), "cube", "friction", usecores, slim_path))
+system2(command = "bash",args = c(here("code", "generation", "slim_math.sh"), "annulus", "friction", usecores, slim_path))
+system2(command = "bash",args = c(here("code", "generation", "slim_math.sh"), "annulus2", "friction", usecores, slim_path))
+system2(command = "bash",args = c(here("code", "generation", "slim_math.sh"), "annulus3", "friction", usecores, slim_path))
 message("\n successfully generated tree sequence data for figure 2\n\n")
 
 source(here("code", "visualization", "compare_friction_with_naive.R"),verbose=FALSE)
@@ -97,7 +97,7 @@ source_pop <- 58   # original grid cell (with the first individuals), starting f
 end_gen <- 7000   # years of simulation
 # Some choices: 7000 (used for main results), 5000, 10000
 
-system2(command = "bash",args = c(here("code", "generation", "slim_empirical.sh"), usecores, source_pop, end_gen))
+system2(command = "bash",args = c(here("code", "generation", "slim_empirical.sh"), usecores, source_pop, end_gen, slim_path))
 message("\n successfully generated tree sequence data for figure 3\n\n")
 
 source(here("code", "simulation", "select_worlds.R"),verbose=FALSE)

@@ -1,5 +1,6 @@
 #!/bin/bash
 
+export PATH=/usr/local/bin:$PATH
 TOPOLOGY=$1
 MODEL=$2
 PARALLEL=$3

@@ -5,6 +5,17 @@
 
 # Before running this script, please set the working directory (setwd()) to the root directory of the project 
 # Ensure all dependencies are installed
+# check and install gaia fom bioconductor if not installed
+if (!requireNamespace("BiocManager", quietly = TRUE)) {
+    install.packages("BiocManager")
+}
+
+
+pkgs <- c("gaia")
+new.packages <- pkgs[!(pkgs %in% installed.packages()[,"Package"])]
+if(length(new.packages)) BiocManager::install("gaia")
+lapply(pkgs, library, character.only = TRUE)
+
 pkgs <- c("gaia","igraph","ggplot2","tidyverse","ggpubr","parallel","sf","terra","viridis","dplyr","rnaturalearth","spdep","jsonlite","expm","here") 
 
 # install if not installed (nothing to do with updates)

@@ -64,7 +64,7 @@ source(here("code", "visualization", "visualize_line.R"),verbose=FALSE)
 message("\n successfully generated actual and estimated tree sequence plot\n\n")
 
 # tip 1: math.slim can also run on SLiM gui, simply by adding absolute path in function initialize():
-# setwd("/Users/jianjunlian/Desktop/work/研二/HbS_v2/real_github/geographical_ancestry_inference-paper");
+# setwd("path/to/your/folder");
 # and parameter will not be passed by bash but use default instead:
 # if (!exists("TOPOLOGY"))
 #   defineConstant("TOPOLOGY", "line");

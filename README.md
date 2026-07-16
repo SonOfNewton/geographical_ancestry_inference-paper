@@ -51,9 +51,9 @@ geographical_ancestry_inference-paper/
 2. Set the working directory to the project root.
 3. Load the following input files:
 
-- in data/geo: 2020_walking_only_friction_surface.geotiff, landgrid_adjmat_naive_afro-eurasia.csv landgrid_afro-eurasia.gpkg
-- in data/pop: popc_5000BC.asc (and other files including 10000BC, 0AD, 1500AD, 2000AD)
-- in data/genetics: hgdp_tgp_sgdp_high_cov_ancients_chr18_p.dated.trees
+- in data/geo: 2020_walking_only_friction_surface.geotiff obtained from [the Malaria Atlas Project](https://malariaatlas.org/project-resources/accessibility-to-healthcare/); landgrid_adjmat_naive_afro-eurasia.csv and landgrid_afro-eurasia.gpkg obtained from [GAIA paper](https://github.com/blueraleigh/gaia)
+- in data/pop: popc_5000BC.asc (and other files including 10000BC, 0AD, 1500AD, 2000AD) obtained from [History Database of the Global Environment (HYDE)](https://geo.public.data.uu.nl/vault-hyde/hyde35_c9_apr2025%5B1749214444%5D/original/gbc2025_7apr_base/zip/)
+- in data/genetics: hgdp_tgp_sgdp_high_cov_ancients_chr18_p.dated.trees obtained from [Unified Genealogy of Modern and Ancient Human Genomes dataset](https://zenodo.org/records/5512994)
 
 4. Install SLiM software from https://messerlab.org/slim/
 5. Run:
